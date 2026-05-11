@@ -2,10 +2,11 @@ import React, { useState, useRef, useEffect } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import { GiHamburgerMenu } from "react-icons/gi";
 import { IoClose } from "react-icons/io5";
-import { FaUserCircle, FaHeart, FaShoppingCart, FaBoxOpen, FaSignOutAlt, FaUserEdit } from "react-icons/fa";
+import { FaUserCircle, FaHeart, FaShoppingCart, FaBoxOpen, FaSignOutAlt, FaUserEdit, FaUserShield } from "react-icons/fa";
 import { IoSearchOutline } from "react-icons/io5";
 import { FiHome, FiInfo, FiPhone } from "react-icons/fi";
 import { useAuth } from "../context/AuthContext";
+import { useCart } from "../context/CartContext";
 
 const profileMenuItems = [
   { to: "/profile", icon: <FaUserCircle size={16} />, label: "My Profile" },
@@ -26,6 +27,7 @@ function Navbar() {
   const [showProfile, setShowProfile] = useState(false);
   const [search, setSearch] = useState("");
   const { user, logout } = useAuth();
+  const { cartCount } = useCart();
   const navigate = useNavigate();
   const location = useLocation();
   const profileRef = useRef(null);
@@ -107,8 +109,13 @@ function Navbar() {
                 <Link to="/wishlist" className={`hover:text-orange-500 transition ${location.pathname === "/wishlist" ? "text-orange-500" : "text-gray-500"}`}>
                   <FaHeart size={19} />
                 </Link>
-                <Link to="/cart" className={`hover:text-orange-500 transition ${location.pathname === "/cart" ? "text-orange-500" : "text-gray-500"}`}>
+                <Link to="/cart" className={`relative hover:text-orange-500 transition ${location.pathname === "/cart" ? "text-orange-500" : "text-gray-500"}`}>
                   <FaShoppingCart size={19} />
+                  {cartCount > 0 && (
+                    <span className="absolute -top-2 -right-2 w-4 h-4 bg-orange-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center">
+                      {cartCount > 9 ? "9+" : cartCount}
+                    </span>
+                  )}
                 </Link>
 
                 {/* Profile Dropdown */}
@@ -135,6 +142,17 @@ function Navbar() {
                         </div>
                       </div>
                       <ul className="py-1">
+                        {user?.role === "admin" && (
+                          <li>
+                            <Link
+                              to="/admin"
+                              onClick={() => setShowProfile(false)}
+                              className={`flex items-center gap-3 px-4 py-2.5 text-sm transition hover:bg-purple-50 hover:text-purple-600 ${location.pathname === "/admin" ? "text-purple-600 bg-purple-50" : "text-gray-600"}`}
+                            >
+                              <span className="text-gray-400"><FaUserShield size={16} /></span> Admin Dashboard
+                            </Link>
+                          </li>
+                        )}
                         {profileMenuItems.map(({ to, icon, label }) => (
                           <li key={to}>
                             <Link
@@ -178,8 +196,13 @@ function Navbar() {
                 <Link to="/wishlist" className="text-gray-500 hover:text-orange-500">
                   <FaHeart size={19} />
                 </Link>
-                <Link to="/cart" className="text-gray-500 hover:text-orange-500">
+                <Link to="/cart" className="relative text-gray-500 hover:text-orange-500">
                   <FaShoppingCart size={19} />
+                  {cartCount > 0 && (
+                    <span className="absolute -top-2 -right-2 w-4 h-4 bg-orange-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center">
+                      {cartCount > 9 ? "9+" : cartCount}
+                    </span>
+                  )}
                 </Link>
               </>
             )}
@@ -270,6 +293,15 @@ function Navbar() {
           {user && (
             <div className="px-3 py-3">
               <p className="text-xs font-bold text-gray-400 uppercase tracking-widest px-3 mb-2">Account</p>
+              {user.role === "admin" && (
+                <Link
+                  to="/admin"
+                  className={`flex items-center gap-3 px-3 py-3 rounded-xl text-sm font-semibold transition mb-0.5 ${location.pathname === "/admin" ? "bg-purple-50 text-purple-600" : "text-gray-600 hover:bg-gray-50"}`}
+                >
+                  <span className={location.pathname === "/admin" ? "text-purple-600" : "text-gray-400"}><FaUserShield size={16} /></span>
+                  Admin Dashboard
+                </Link>
+              )}
               {profileMenuItems.map(({ to, icon, label }) => (
                 <Link
                   key={to}

@@ -1,19 +1,13 @@
 import React from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { z } from "zod";
 import { useMutation } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { useAuth } from "../context/AuthContext";
 import { useNavigate } from "react-router-dom";
 import { FiUser, FiPhone, FiMapPin, FiArrowLeft, FiMail } from "react-icons/fi";
 import { updateProfile } from "../helpers/apiRequest";
-
-const editProfileSchema = z.object({
-  name: z.string().min(1, "Name is required"),
-  contact: z.string().regex(/^[0-9]{10}$/, "Enter a valid 10-digit number"),
-  address: z.string().min(1, "Address is required"),
-});
+import { editProfileSchema } from "../schemas/editprofileSchema";
 
 function EditProfile() {
   const { user, updateUser } = useAuth();

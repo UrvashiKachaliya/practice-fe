@@ -59,11 +59,11 @@ const Footer = () => {
           <div className="lg:col-span-1">
             <div className="flex items-center gap-2 mb-4">
               <span className="text-3xl">🌾</span>
-              {/* <span className="text-white text-xl font-extrabold tracking-tight">Khakhra Co.</span> */}
+              <span className="text-white text-xl font-extrabold tracking-tight">Khakhra Co.</span>
             </div>
-            {/* <p className="text-sm leading-relaxed mb-5">
+            <p className="text-sm leading-relaxed mb-5">
               Bringing you the crispiest, healthiest, and most delicious khakhras made with 100% natural ingredients. Taste tradition in every bite.
-            </p> */}
+            </p>
 
             {/* Social Icons */}
             <div className="flex gap-2">

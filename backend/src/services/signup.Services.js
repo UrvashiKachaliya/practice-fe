@@ -60,7 +60,7 @@ export const resendOTPService = async (email) => {
   if (users[0].is_verified) throw new Error("Email already verified");
 
   const otp = generateOTP();
-  const otpExpiresAt = new Date(Date.now() + 10 * 60 * 1000);
+  const otpExpiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
 
   await db.promise().query(
     "UPDATE users SET otp = ?, otp_expires_at = ? WHERE id = ?",

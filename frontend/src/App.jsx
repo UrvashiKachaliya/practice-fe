@@ -20,7 +20,7 @@ function App() {
 
   const columns = useMemo(
     () => [
-      {
+      { 
         accessorKey: "name",
         header: "Name",
       },
