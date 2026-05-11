@@ -26,7 +26,7 @@ const HERO_SLIDES = [
     badge: "❤️ 10,000+ Happy Customers",
     title: "Taste the\nDifference.",
     desc: "No preservatives. No artificial flavors. Just pure, crispy goodness in every bite.",
-    emoji: "😋",
+    emoji: "",
     from: "#8b5cf6", to: "#7c3aed",
   },
 ];
