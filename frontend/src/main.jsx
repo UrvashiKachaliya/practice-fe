@@ -5,6 +5,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import Layout from "../layout";
 import SignIn from "./pages/SignIn";
 import SignUp from "./pages/SignUp";
+import VerifyEmail from "./pages/VerifyEmail";
 import Products from "./pages/Products";
 import SingleProduct from "./pages/SingleProduct";
 import AddProduct from "./pages/AddProduct";
@@ -16,6 +17,8 @@ import Cart from "./pages/Cart";
 import ProtectedRoute from "./components/ProtectedRoute";
 import RoleProtectedRoute from "./components/RoleProtectedRoute";
 import { AuthProvider } from "./context/AuthContext";
+import { AuthPromptProvider } from "./context/AuthPromptContext";
+import AuthPromptModal from "./components/AuthPromptModal";
 import { Toaster } from "sonner";
 import "./index.css";
 
@@ -24,12 +27,15 @@ const queryClient = new QueryClient();
 ReactDOM.createRoot(document.getElementById("root")).render(
   <QueryClientProvider client={queryClient}>
     <AuthProvider>
+      <AuthPromptProvider>
       <Toaster position="top-right" richColors />
       <BrowserRouter>
+      <AuthPromptModal />
         <Routes>
           {/* Auth pages — no layout */}
           <Route path="/signin" element={<SignIn />} />
           <Route path="/signup" element={<SignUp />} />
+          <Route path="/verify-email" element={<VerifyEmail />} />
 
           {/* All other pages — with Layout (navbar + footer) */}
           <Route element={<Layout />}>
@@ -60,6 +66,7 @@ ReactDOM.createRoot(document.getElementById("root")).render(
           </Route>
         </Routes>
       </BrowserRouter>
+      </AuthPromptProvider>
     </AuthProvider>
   </QueryClientProvider>
 );

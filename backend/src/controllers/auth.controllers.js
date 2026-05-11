@@ -1,4 +1,4 @@
-import { signupService } from "../services/signup.Services.js";
+import { signupService, verifyEmailService, resendOTPService } from "../services/signup.Services.js";
 
 export const signup = async (req, res) => {
   const { name, email, password, contact, address } = req.body;
@@ -10,8 +10,32 @@ export const signup = async (req, res) => {
     const data = await signupService(name, email, password, contact, address);
     res.status(201).json(data);
   } catch (error) {
-    const status = error.message === "Email already registered" ? 500 : 400;
+    const status = error.message === "Email already registered" ? 409 : 400;
     res.status(status).json({ message: error.message });
+  }
+};
+
+export const verifyEmail = async (req, res) => {
+  const { email, otp } = req.body;
+  if (!email || !otp) return res.status(400).json({ message: "Email and OTP are required" });
+
+  try {
+    const data = await verifyEmailService(email, otp);
+    res.status(200).json(data);
+  } catch (error) {
+    res.status(400).json({ message: error.message });
+  }
+};
+
+export const resendOTP = async (req, res) => {
+  const { email } = req.body;
+  if (!email) return res.status(400).json({ message: "Email is required" });
+
+  try {
+    const data = await resendOTPService(email);
+    res.status(200).json(data);
+  } catch (error) {
+    res.status(400).json({ message: error.message });
   }
 };
 

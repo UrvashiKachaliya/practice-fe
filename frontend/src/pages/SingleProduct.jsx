@@ -3,10 +3,16 @@ import { useParams, useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { getSingleProduct } from "../helpers/apiRequest";
 import { FaArrowLeft, FaShoppingCart, FaHeart } from "react-icons/fa";
+import { useAuth } from "../context/AuthContext";
+import { useAuthPrompt } from "../context/AuthPromptContext";
 
 function SingleProduct() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const { openAuthPrompt } = useAuthPrompt();
+
+  const guard = (action) => user ? action() : openAuthPrompt(`/products/${id}`);
   const { data: product, isLoading, isError } = useQuery({
     queryKey: ["product", id],
     queryFn: () => getSingleProduct(id).then((res) => res.data.product),
@@ -64,10 +70,16 @@ function SingleProduct() {
             </div>
 
             <div className="flex gap-3 mt-2">
-              <button className="flex-1 flex items-center justify-center gap-2 bg-orange-500 text-white py-2.5 rounded-lg hover:bg-orange-600 font-medium">
+              <button
+                onClick={() => guard(() => {})}
+                className="flex-1 flex items-center justify-center gap-2 bg-orange-500 text-white py-2.5 rounded-lg hover:bg-orange-600 font-medium"
+              >
                 <FaShoppingCart /> Add to Cart
               </button>
-              <button className="px-4 py-2.5 border rounded-lg hover:bg-red-50 hover:border-red-300 hover:text-red-500">
+              <button
+                onClick={() => guard(() => {})}
+                className="px-4 py-2.5 border rounded-lg hover:bg-red-50 hover:border-red-300 hover:text-red-500"
+              >
                 <FaHeart />
               </button>
             </div>

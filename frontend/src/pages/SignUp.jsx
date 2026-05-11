@@ -15,7 +15,7 @@ function SignUp() {
   const { register, handleSubmit, formState: { errors } } = useForm({
     resolver: zodResolver(signupSchema),
   });
-  const { login, user } = useAuth();
+  const { user } = useAuth();
   const navigate = useNavigate();
 
   if (user) return <Navigate to="/" replace />;
@@ -23,9 +23,8 @@ function SignUp() {
   const { mutate, isPending } = useMutation({
     mutationFn: registerUser,
     onSuccess: (res) => {
-      login(res.data);
-      toast.success("Welcome to Khakhra Co.! 🌾");
-      navigate("/");
+      toast.success("Check your email for the verification code! 📬");
+      navigate("/verify-email", { state: { email: res.data.email } });
     },
     onError: (err) => {
       toast.error(err.response?.data?.message || "Something went wrong");
@@ -49,7 +48,7 @@ function SignUp() {
 
         <div className="relative z-10 text-center text-white">
           <div className="text-7xl mb-6">🌾</div>
-          <h1 className="text-4xl font-extrabold mb-3 tracking-tight">Khakhra Co.</h1>
+          {/* <h1 className="text-4xl font-extrabold mb-3 tracking-tight">Khakhra Co.</h1> */}
           <p className="text-orange-100 text-lg font-medium mb-8">Join our crispy community!</p>
           <div className="flex flex-col gap-3 text-sm text-orange-100">
             <div className="flex items-center gap-3 bg-white/15 rounded-xl px-5 py-3">

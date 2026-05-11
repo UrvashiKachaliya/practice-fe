@@ -9,6 +9,7 @@ export const signinService = async (email, password) => {
   if (rows.length === 0) throw new Error("User not found");
 
   const user = rows[0];
+  if (!user.is_verified) throw new Error("Please verify your email before signing in");
   const isMatch = await comparePassword(password, user.password);
   if (!isMatch) throw new Error("Invalid password");
 
