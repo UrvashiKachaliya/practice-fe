@@ -6,7 +6,7 @@ function ProductList() {
   const [products, setProduct] = useState([]);
   useEffect(() => {
     setProduct(dummydata);
-  }, []);
+  }, []); 
   // const [loading, setLoading] =  (true);
 
   // useEffect(() => {

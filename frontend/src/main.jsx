@@ -9,10 +9,13 @@ import VerifyEmail from "./pages/VerifyEmail";
 import ForgotPassword from "./pages/ForgotPassword";
 import ResetPassword from "./pages/ResetPassword";
 import NotFound from "./pages/NotFound";
-import Products from "./pages/Products";
+import Home from "./pages/Products";
 import SingleProduct from "./pages/SingleProduct";
 import About from "./pages/About";
 import Contact from "./pages/Contact";
+import Boutique from "./pages/Boutique";
+import BoutiqueGallery from "./pages/BoutiqueGallery";
+import BoutiqueInquiry from "./pages/BoutiqueInquiry";
 import AddProduct from "./pages/AddProduct";
 import AdminDashboard from "./pages/AdminDashboard";
 import Profile from "./pages/Profile";
@@ -26,7 +29,9 @@ import RoleProtectedRoute from "./components/RoleProtectedRoute";
 import { AuthProvider } from "./context/AuthContext";
 import { AuthPromptProvider } from "./context/AuthPromptContext";
 import { CartProvider } from "./context/CartContext";
+import { BrandProvider } from "./context/BrandContext";
 import AuthPromptModal from "./components/AuthPromptModal";
+import { BOUTIQUE_ENABLED } from "./constants/featureFlags";
 import { Toaster } from "sonner";
 import "./index.css";
 
@@ -39,6 +44,7 @@ const queryClient = new QueryClient({
 ReactDOM.createRoot(document.getElementById("root")).render(
   <QueryClientProvider client={queryClient}>
     <AuthProvider>
+      <BrandProvider>
       <AuthPromptProvider>
         <CartProvider>
           <Toaster position="top-right" richColors />
@@ -55,10 +61,17 @@ ReactDOM.createRoot(document.getElementById("root")).render(
               {/* All other pages — with Layout (navbar + footer) */}
               <Route element={<Layout />}>
                 {/*Public routes*/}
-                <Route path="/" element={<Products />} />
-                <Route path="/products" element={<Products />} />
+                <Route path="/" element={<Home />} />
+                <Route path="/products" element={<Home />} />
                 <Route path="/about" element={<About />} />
                 <Route path="/contact" element={<Contact />} />
+                {BOUTIQUE_ENABLED && (
+                  <>
+                    <Route path="/boutique" element={<Boutique />} />
+                    <Route path="/boutique/gallery" element={<BoutiqueGallery />} />
+                    <Route path="/boutique/inquiry" element={<BoutiqueInquiry />} />
+                  </>
+                )}
                 <Route
                   path="/products/add"
                   element={
@@ -124,6 +137,7 @@ ReactDOM.createRoot(document.getElementById("root")).render(
           </BrowserRouter>
         </CartProvider>
       </AuthPromptProvider>
+      </BrandProvider>
     </AuthProvider>
   </QueryClientProvider>,
 );

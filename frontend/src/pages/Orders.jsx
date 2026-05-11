@@ -70,10 +70,10 @@ function Orders() {
                 {/* Order Header */}
                 <button
                   onClick={() => setExpanded(expanded === order.id ? null : order.id)}
-                  className="w-full flex items-center justify-between p-5 hover:bg-orange-50/30 transition text-left"
+                  className="w-full flex items-center justify-between p-4 hover:bg-orange-50/30 transition text-left"
                 >
-                  <div className="flex items-center gap-3">
-                    <span className="text-2xl">{statusIcon[order.status]}</span>
+                  <div className="flex items-center gap-2.5">
+                    <span className="text-xl">{statusIcon[order.status]}</span>
                     <div>
                       <p className="font-extrabold text-gray-800 text-sm">Order #{order.id}</p>
                       <p className="text-xs text-gray-400 mt-0.5">
@@ -81,11 +81,11 @@ function Orders() {
                       </p>
                     </div>
                   </div>
-                  <div className="flex items-center gap-3 shrink-0">
-                    <span className={`text-xs font-bold px-2.5 py-1 rounded-full capitalize ${statusStyle[order.status]}`}>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <span className={`text-xs font-bold px-2 py-0.5 rounded-full capitalize ${statusStyle[order.status]}`}>
                       {order.status}
                     </span>
-                    <span className="font-extrabold text-orange-500">₹{parseFloat(order.total_amount).toFixed(2)}</span>
+                    <span className="font-extrabold text-orange-500 text-sm">₹{parseFloat(order.total_amount).toFixed(0)}</span>
                     <span className={`text-gray-400 text-xs transition-transform ${expanded === order.id ? "rotate-180" : ""}`}>▼</span>
                   </div>
                 </button>

@@ -53,7 +53,7 @@ function Overview() {
   if (isLoading) return <Spinner />;
 
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-5">
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
       <StatCard icon={<FaUsers />} label="Total Users" value={data?.totalUsers} color="bg-orange-50 text-orange-500" />
       <StatCard icon={<FaStore />} label="Total Sellers" value={data?.totalSellers} color="bg-blue-50 text-blue-500" />
       <StatCard icon={<FaBoxOpen />} label="Total Products" value={data?.totalProducts} color="bg-green-50 text-green-500" />
@@ -472,13 +472,13 @@ export default function AdminDashboard() {
           </div>
         </div>
 
-        {/* Tabs */}
-        <div className="flex gap-1 bg-white border border-orange-100 rounded-2xl p-1.5 w-fit mb-7 shadow-sm">
+        {/* Tabs — scrollable on mobile */}
+        <div className="flex gap-1 bg-white border border-orange-100 rounded-2xl p-1.5 mb-7 shadow-sm overflow-x-auto">
           {TABS.map(t => (
             <button
               key={t}
               onClick={() => setTab(t)}
-              className={`px-5 py-2 rounded-xl text-sm font-semibold transition ${tab === t ? "bg-gradient-to-r from-orange-500 to-amber-500 text-white shadow-sm" : "text-gray-500 hover:text-orange-500"}`}
+              className={`px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold transition whitespace-nowrap ${tab === t ? "bg-gradient-to-r from-orange-500 to-amber-500 text-white shadow-sm" : "text-gray-500 hover:text-orange-500"}`}
             >
               {t}
             </button>

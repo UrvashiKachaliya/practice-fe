@@ -2,7 +2,6 @@ import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { dummydata } from "../mockdata/dummydata";
 import watchImage from "../assets/dummy-image.jpg";
 import { useState, useEffect } from "react";
-
 function ProductDetail() {
   const { id } = useParams();
   const navigate = useNavigate();

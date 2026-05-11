@@ -38,3 +38,8 @@ export const getAdminOffers = () => axiosInstance.get(API_ENDPOINTS.ADMIN_OFFERS
 export const createOffer = (data) => axiosInstance.post(API_ENDPOINTS.OFFERS, data);
 export const updateOffer = (id, data) => axiosInstance.put(`${API_ENDPOINTS.OFFERS}/${id}`, data);
 export const deleteOffer = (id) => axiosInstance.delete(`${API_ENDPOINTS.OFFERS}/${id}`);
+
+// Wishlist
+export const getWishlist = () => axiosInstance.get(API_ENDPOINTS.WISHLIST);
+export const toggleWishlist = (productId) => axiosInstance.post(`${API_ENDPOINTS.WISHLIST}/toggle`, { productId });
+export const checkWishlist = (productId) => axiosInstance.get(`${API_ENDPOINTS.WISHLIST}/check/${productId}`);

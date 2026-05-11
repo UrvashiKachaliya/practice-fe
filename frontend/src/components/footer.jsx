@@ -2,10 +2,13 @@ import React, { useState } from "react";
 import { Link } from "react-router-dom";
 import { FaFacebookF, FaInstagram, FaTwitter, FaYoutube, FaWhatsapp } from "react-icons/fa";
 import { FiMail, FiPhone, FiMapPin, FiArrowRight } from "react-icons/fi";
+import { BOUTIQUE_ENABLED } from "../constants/featureFlags";
+import { useBrand } from "../context/BrandContext";
 
 const Footer = () => {
   const [email, setEmail] = useState("");
-
+  const { theme, mode } = useBrand();
+  const isBoutique = mode === "boutique";
   const currentYear = new Date().getFullYear();
 
   // const categories = [
@@ -22,6 +25,12 @@ const Footer = () => {
     { label: "Wishlist", to: "/wishlist" },
   ];
 
+  const boutiqueLinks = [
+    { label: "Boutique Home", to: "/boutique" },
+    { label: "Gallery", to: "/boutique/gallery" },
+    { label: "Book Appointment", to: "/boutique/inquiry" },
+  ];
+
   const socialLinks = [
     { icon: <FaInstagram size={17} />, href: "#", label: "Instagram", color: "hover:bg-pink-500" },
     { icon: <FaFacebookF size={17} />, href: "#", label: "Facebook", color: "hover:bg-blue-600" },
@@ -29,6 +38,7 @@ const Footer = () => {
     { icon: <FaYoutube size={17} />, href: "#", label: "YouTube", color: "hover:bg-red-500" },
     { icon: <FaWhatsapp size={17} />, href: "#", label: "WhatsApp", color: "hover:bg-green-500" },
   ];
+
 
   const handleSubscribe = (e) => {
     e.preventDefault();
@@ -39,14 +49,20 @@ const Footer = () => {
     <footer className="bg-gray-900 text-gray-400">
 
       {/* Top Banner */}
-      <div className="bg-gradient-to-r from-orange-500 to-amber-500 py-4 px-6">
-        <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-3">
+      <div className={`bg-gradient-to-r ${theme.footerBanner} py-4 px-6`}>
+        <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-3 text-center sm:text-left">
           <div className="flex items-center gap-3 text-white">
-            <span className="text-2xl">🌾</span>
-            <p className="font-semibold text-sm">Free delivery on orders above ₹499! Use code <span className="font-extrabold bg-white/20 px-2 py-0.5 rounded-lg">CRISPY10</span> for 10% off</p>
+            <span className="text-2xl shrink-0">{theme.emoji}</span>
+            {isBoutique
+              ? <p className="font-semibold text-sm">Book your appointment today! Free consultation for bridal packages.</p>
+              : <p className="font-semibold text-sm">Free delivery on orders above ₹499! Use code <span className="font-extrabold bg-white/20 px-2 py-0.5 rounded-lg">CRISPY10</span> for 10% off</p>
+            }
           </div>
-          <Link to="/products" className="shrink-0 bg-white text-orange-500 font-bold text-sm px-5 py-2 rounded-full hover:bg-orange-50 transition">
-            Shop Now
+          <Link to={isBoutique ? "/boutique/inquiry" : "/products"}
+            className="shrink-0 bg-white font-bold text-sm px-5 py-2 rounded-full hover:bg-white/90 transition"
+            style={{ color: theme.hex1 }}
+          >
+            {isBoutique ? "Book Now" : "Shop Now"}
           </Link>
         </div>
       </div>
@@ -57,12 +73,21 @@ const Footer = () => {
 
           {/* Brand */}
           <div className="lg:col-span-1">
-            <div className="flex items-center gap-2 mb-4">
+            <div className="flex items-center gap-2 mb-2">
               <span className="text-3xl">🌾</span>
               <span className="text-white text-xl font-extrabold tracking-tight">Khakhra Co.</span>
             </div>
+            {BOUTIQUE_ENABLED && (
+              <div className="flex items-center gap-2 mb-4">
+                <span className="text-3xl">🪡</span>
+                <span className="text-purple-300 text-sm font-bold tracking-tight">Boutique :sdf</span>
+              </div>
+            )}
             <p className="text-sm leading-relaxed mb-5">
-              Bringing you the crispiest, healthiest, and most delicious khakhras made with 100% natural ingredients. Taste tradition in every bite.
+              {BOUTIQUE_ENABLED
+                ? "Two crafts, one family. Homemade khakhras & handcrafted fashion — both made with love, tradition & Gujarati pride."
+                : "Bringing you the crispiest, healthiest khakhras made with 100% natural ingredients. Taste tradition in every bite."
+              }
             </p>
 
             {/* Social Icons */}
@@ -82,15 +107,37 @@ const Footer = () => {
 
           {/* Quick Links */}
           <div>
-            <h3 className="text-white font-bold text-sm uppercase tracking-widest mb-5">Quick Links</h3>
+            <h3 className="text-white font-bold text-sm uppercase tracking-widest mb-5">
+              {isBoutique ? "Stitch & Taste" : "Khakhra Co."}
+            </h3>
             <ul className="flex flex-col gap-2.5">
-              {quickLinks.map(({ label, to }) => (
+              {(isBoutique ? boutiqueLinks : quickLinks).map(({ label, to }) => (
                 <li key={to}>
                   <Link
                     to={to}
-                    className="text-sm flex items-center gap-2 hover:text-orange-400 transition group"
+                    className={`text-sm flex items-center gap-2 transition group ${isBoutique ? "hover:text-purple-400" : "hover:text-orange-400"}`}
                   >
-                    <FiArrowRight size={13} className="text-orange-500 opacity-0 group-hover:opacity-100 transition -ml-1" />
+                    <FiArrowRight size={13} className={`${isBoutique ? "text-purple-500" : "text-orange-500"} opacity-0 group-hover:opacity-100 transition -ml-1`} />
+                    {label}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          {/* Second links column — khakhra shows extra links, boutique shows khakhra links */}
+          <div>
+            <h3 className="text-white font-bold text-sm uppercase tracking-widest mb-5">
+              {isBoutique ? "Khakhra Co." : "Quick Links"}
+            </h3>
+            <ul className="flex flex-col gap-2.5">
+              {(isBoutique ? quickLinks : boutiqueLinks).map(({ label, to }) => (
+                <li key={to}>
+                  <Link
+                    to={to}
+                    className={`text-sm flex items-center gap-2 transition group ${isBoutique ? "hover:text-orange-400" : "hover:text-purple-400"}`}
+                  >
+                    <FiArrowRight size={13} className={`${isBoutique ? "text-orange-500" : "text-purple-500"} opacity-0 group-hover:opacity-100 transition -ml-1`} />
                     {label}
                   </Link>
                 </li>
@@ -144,11 +191,11 @@ const Footer = () => {
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="your@email.com"
                 required
-                className="flex-1 min-w-0 px-3 py-2.5 text-sm bg-gray-800 border border-gray-700 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:border-orange-400 transition"
+                className={`flex-1 min-w-0 px-3 py-2.5 text-sm bg-gray-800 border border-gray-700 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:border-${isBoutique ? "purple" : "orange"}-400 transition`}
               />
               <button
                 type="submit"
-                className="shrink-0 bg-gradient-to-r from-orange-500 to-amber-500 text-white px-4 py-2.5 rounded-xl text-sm font-bold hover:from-orange-600 hover:to-amber-600 transition"
+                className={`shrink-0 bg-gradient-to-r ${theme.footerBanner} text-white px-4 py-2.5 rounded-xl text-sm font-bold transition`}
               >
                 Join
               </button>

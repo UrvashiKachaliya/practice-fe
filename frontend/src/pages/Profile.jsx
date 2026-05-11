@@ -27,19 +27,19 @@ function Profile() {
 
       <div className="max-w-3xl mx-auto px-4 pb-12">
         {/* Avatar + Name */}
-        <div className="relative -mt-10 mb-6 flex items-end justify-between">
-          <div className="flex items-end gap-4">
-            <div className="w-24 h-24 rounded-2xl bg-gradient-to-br from-orange-400 to-amber-500 flex items-center justify-center text-white text-3xl font-extrabold shadow-lg border-4 border-white">
+        <div className="relative -mt-10 mb-6 flex items-end justify-between flex-wrap gap-3">
+          <div className="flex items-end gap-3">
+            <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-2xl bg-gradient-to-br from-orange-400 to-amber-500 flex items-center justify-center text-white text-2xl sm:text-3xl font-extrabold shadow-lg border-4 border-white">
               {initials}
             </div>
             <div className="mb-1">
-              <h2 className="text-xl font-extrabold text-gray-800">{user?.name}</h2>
+              <h2 className="text-lg sm:text-xl font-extrabold text-gray-800">{user?.name}</h2>
               <span className={`text-xs font-semibold px-3 py-0.5 rounded-full capitalize ${user?.role === "admin" ? "bg-purple-100 text-purple-600" : user?.role === "seller" ? "bg-blue-100 text-blue-600" : "bg-orange-100 text-orange-600"}`}>
                 {user?.role}
               </span>
             </div>
           </div>
-          <Link to="/profile/edit" className="flex items-center gap-2 bg-white border border-orange-200 text-orange-500 px-4 py-2 rounded-xl text-sm font-semibold hover:bg-orange-50 shadow-sm mb-1 bg-black mt-4">
+          <Link to="/profile/edit" className="flex items-center gap-2 bg-white border border-orange-200 text-orange-500 px-4 py-2 rounded-xl text-sm font-semibold hover:bg-orange-50 shadow-sm">
             <FaUserEdit size={14} /> Edit
           </Link>
         </div>
