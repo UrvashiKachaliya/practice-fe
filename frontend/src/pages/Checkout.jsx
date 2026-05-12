@@ -1,11 +1,21 @@
 import React, { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { FiMapPin, FiShoppingBag, FiCalendar } from "react-icons/fi";
-import { getCart, placeOrder } from "../helpers/apiRequest";
+import { getCart, placeOrder, createPaymentOrder } from "../helpers/apiRequest";
 import { useAuth } from "../context/AuthContext";
 import { totalWeight } from "../utils/weightUtils";
+
+const loadRazorpay = () =>
+  new Promise((resolve) => {
+    if (window.Razorpay) return resolve(true);
+    const s = document.createElement("script");
+    s.src = "https://checkout.razorpay.com/v1/checkout.js";
+    s.onload = () => resolve(true);
+    s.onerror = () => resolve(false);
+    document.body.appendChild(s);
+  });
 
 function Checkout() {
   const { user } = useAuth();
@@ -13,6 +23,7 @@ function Checkout() {
   const qc = useQueryClient();
   const [address, setAddress] = useState(user?.address || "");
   const [requestedDate, setRequestedDate] = useState("");
+  const [isPending, setIsPending] = useState(false);
 
   const { data: items = [], isLoading } = useQuery({
     queryKey: ["cart"],
@@ -23,15 +34,71 @@ function Checkout() {
   const deliveryFee = subtotal >= 499 ? 0 : 49;
   const total = subtotal + deliveryFee;
 
-  const { mutate, isPending } = useMutation({
-    mutationFn: () => placeOrder({ address, requestedDeliveryDate: requestedDate || null }),
-    onSuccess: (res) => {
-      qc.invalidateQueries({ queryKey: ["cart"] });
-      toast.success(`Order #${res.data.orderId} placed! Check your email 📧`);
-      navigate("/orders");
-    },
-    onError: (err) => toast.error(err.response?.data?.message || "Failed to place order"),
-  });
+  const handlePayment = async () => {
+    if (!address.trim()) return toast.error("Please enter a delivery address");
+
+    setIsPending(true);
+
+    const loaded = await loadRazorpay();
+    if (!loaded) {
+      toast.error("Failed to load payment gateway. Check your connection.");
+      setIsPending(false);
+      return;
+    }
+
+    try {
+      // Step 1: Create Razorpay order on backend
+      const { data } = await createPaymentOrder(total);
+
+      // Step 2: Open Razorpay modal
+      const options = {
+        key: data.key || import.meta.env.VITE_RAZORPAY_KEY_ID,
+        amount: data.amount,
+        currency: data.currency,
+        name: "Khakhra Co.",
+        description: "Fresh Crispy Khakhras",
+        order_id: data.razorpay_order_id,
+        prefill: {
+          name: user.name,
+          email: user.email,
+          contact: user.contact || "",
+        },
+        theme: { color: "#f97316" },  
+        handler: async (response) => {
+          try {
+            // Step 3: Place order + verify payment together
+            const res = await placeOrder({
+              address,
+              requestedDeliveryDate: requestedDate || null,
+              paymentDetails: {
+                razorpay_order_id: response.razorpay_order_id,
+                razorpay_payment_id: response.razorpay_payment_id,
+                razorpay_signature: response.razorpay_signature,
+              },
+            });
+            qc.invalidateQueries({ queryKey: ["cart"] });
+            toast.success(`Order #${res.data.orderId} placed! Check your email 📧`);
+            navigate("/orders");
+          } catch (err) {
+            toast.error(err.response?.data?.message || "Order placement failed");
+          } finally {
+            setIsPending(false);
+          }
+        },
+        modal: {
+          ondismiss: () => {
+            toast.error("Payment cancelled");
+            setIsPending(false);
+          },
+        },
+      };
+
+      new window.Razorpay(options).open();
+    } catch (err) {
+      toast.error(err.response?.data?.message || "Failed to initiate payment");
+      setIsPending(false);
+    }
+  };
 
   const today = new Date().toISOString().split("T")[0];
 
@@ -88,7 +155,7 @@ function Checkout() {
                 <h3 className="font-extrabold text-gray-800">Preferred Delivery Date</h3>
                 <span className="text-xs text-gray-400 font-normal">(optional)</span>
               </div>
-              <p className="text-xs text-gray-400 mb-3">Let us know when you'd like your order delivered. We'll confirm or suggest an alternate date.</p>
+              <p className="text-xs text-gray-400 mb-3">Let us know when you'd like your order delivered.</p>
               <input
                 type="date"
                 value={requestedDate}
@@ -122,7 +189,7 @@ function Checkout() {
           {/* Summary — desktop */}
           <div className="hidden lg:block lg:w-72 shrink-0">
             <SummaryCard subtotal={subtotal} deliveryFee={deliveryFee} total={total}
-              address={address} isPending={isPending} onPlace={() => mutate()} />
+              address={address} isPending={isPending} onPay={handlePayment} />
           </div>
         </div>
       </div>
@@ -133,16 +200,16 @@ function Checkout() {
           <span className="text-sm text-gray-500">Total</span>
           <span className="text-lg font-extrabold text-orange-500">₹{total.toFixed(2)}</span>
         </div>
-        <button onClick={() => mutate()} disabled={isPending || !address.trim()}
+        <button onClick={handlePayment} disabled={isPending || !address.trim()}
           className="w-full bg-gradient-to-r from-orange-500 to-amber-500 text-white py-3 rounded-xl font-bold text-sm disabled:opacity-60 transition">
-          {isPending ? "Placing Order..." : "Place Order →"}
+          {isPending ? "Processing..." : "Pay Now →"}
         </button>
       </div>
     </div>
   );
 }
 
-function SummaryCard({ subtotal, deliveryFee, total, address, isPending, onPlace }) {
+function SummaryCard({ subtotal, deliveryFee, total, address, isPending, onPay }) {
   return (
     <div className="bg-white rounded-2xl border border-orange-100 shadow-sm p-6 sticky top-6">
       <h3 className="font-extrabold text-gray-800 mb-5">Order Summary</h3>
@@ -162,9 +229,19 @@ function SummaryCard({ subtotal, deliveryFee, total, address, isPending, onPlace
           <span className="text-orange-500 text-lg">₹{total.toFixed(2)}</span>
         </div>
       </div>
-      <button onClick={onPlace} disabled={isPending || !address.trim()}
+
+      {/* Payment badge */}
+      <div className="flex items-center gap-2 bg-blue-50 border border-blue-100 rounded-xl px-4 py-3 mb-4">
+        <span className="text-lg">🔒</span>
+        <div>
+          <p className="text-xs font-bold text-blue-700">Secure Payment</p>
+          <p className="text-xs text-gray-400">UPI · Cards · Wallets via Razorpay</p>
+        </div>
+      </div>
+
+      <button onClick={onPay} disabled={isPending || !address.trim()}
         className="w-full bg-gradient-to-r from-orange-500 to-amber-500 text-white py-3 rounded-xl font-bold text-sm disabled:opacity-60 transition">
-        {isPending ? "Placing Order..." : "Place Order →"}
+        {isPending ? "Processing..." : `Pay ₹${total.toFixed(2)} →`}
       </button>
     </div>
   );

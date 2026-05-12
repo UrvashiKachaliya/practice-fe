@@ -24,6 +24,10 @@ export const placeOrder = (data) => axiosInstance.post(API_ENDPOINTS.ORDERS, dat
 export const getUserOrders = () => axiosInstance.get(API_ENDPOINTS.ORDERS);
 export const repeatOrder = (id) => axiosInstance.post(`${API_ENDPOINTS.ORDERS}/${id}/repeat`);
 
+// Payments
+export const createPaymentOrder = (amount) => axiosInstance.post("/api/payments/create-order", { amount });
+export const verifyPayment = (data) => axiosInstance.post("/api/payments/verify", data);
+
 // Admin
 export const getAdminStats = () => axiosInstance.get(API_ENDPOINTS.ADMIN_STATS);
 export const getAdminUsers = () => axiosInstance.get(API_ENDPOINTS.ADMIN_USERS);

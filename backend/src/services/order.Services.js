@@ -1,7 +1,8 @@
 import db from "../config/db.js";
 import { sendOrderConfirmation, sendAdminOrderNotification, sendOrderStatusUpdate, sendDeliveryDateResponse } from "./emailService.js";
+import { processRefundService, verifyAndLinkPaymentService } from "./payment.Services.js";
 
-export const placeOrderService = async (userId, address, requestedDeliveryDate) => {
+export const placeOrderService = async (userId, address, requestedDeliveryDate, paymentDetails) => {
   const [cartItems] = await db.promise().query(
     `SELECT c.id AS cart_id, c.quantity, c.weight, p.id AS product_id,
             p.title, p.price, p.stock
@@ -25,6 +26,12 @@ export const placeOrderService = async (userId, address, requestedDeliveryDate) 
     [userId, totalAmount, deliveryFee, address, requestedDeliveryDate || null]
   );
   const orderId = orderResult.insertId;
+
+  // Verify and link payment if provided
+  if (paymentDetails) {
+    const { razorpay_order_id, razorpay_payment_id, razorpay_signature } = paymentDetails;
+    await verifyAndLinkPaymentService(orderId, razorpay_order_id, razorpay_payment_id, razorpay_signature);
+  }
 
   for (const item of cartItems) {
     await db.promise().query(
@@ -64,11 +71,16 @@ export const getUserOrdersService = async (userId) => {
 export const getAdminOrdersService = async () => {
   const [orders] = await db.promise().query(
     `SELECT o.*, u.name AS user_name, u.email AS user_email,
+      pay.status AS payment_status, pay.method AS payment_method,
+      pay.bank, pay.vpa, pay.wallet, pay.card_network, pay.card_last4,
+      pay.razorpay_payment_id,
       (SELECT JSON_ARRAYAGG(JSON_OBJECT(
         'id', oi.id, 'title', oi.title, 'price', oi.price,
         'quantity', oi.quantity, 'weight', oi.weight
       )) FROM order_items oi WHERE oi.order_id = o.id) AS items
-     FROM orders o JOIN users u ON o.user_id = u.id
+     FROM orders o
+     JOIN users u ON o.user_id = u.id
+     LEFT JOIN payments pay ON pay.order_id = o.id
      WHERE MONTH(o.created_at) = MONTH(CURRENT_DATE())
        AND YEAR(o.created_at) = YEAR(CURRENT_DATE())
      ORDER BY o.created_at DESC`
@@ -81,6 +93,11 @@ export const updateOrderStatusService = async (orderId, status) => {
   if (!validStatuses.includes(status)) throw new Error("Invalid status");
 
   await db.promise().query("UPDATE orders SET status = ? WHERE id = ?", [status, orderId]);
+
+  // Auto-refund if admin cancels a paid order
+  if (status === "cancelled") {
+    await processRefundService(orderId).catch(() => {}); // silent fail if no payment
+  }
 
   const [[order]] = await db.promise().query(
     `SELECT o.address, u.name, u.email, u.contact

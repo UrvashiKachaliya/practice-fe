@@ -11,10 +11,10 @@ export const repeatOrder = async (req, res) => {
 };
 
 export const placeOrder = async (req, res) => {
-  const { address, requestedDeliveryDate } = req.body;
+  const { address, requestedDeliveryDate, paymentDetails } = req.body;
   if (!address) return res.status(400).json({ message: "Delivery address is required" });
   try {
-    const data = await placeOrderService(req.user.id, address, requestedDeliveryDate);
+    const data = await placeOrderService(req.user.id, address, requestedDeliveryDate, paymentDetails);
     logger.info({ message: "Order placed", userId: req.user.id, orderId: data.orderId });
     res.status(201).json(data);
   } catch (e) {

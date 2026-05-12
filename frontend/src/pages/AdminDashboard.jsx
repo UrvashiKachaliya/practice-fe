@@ -5,13 +5,14 @@ import { FaUsers, FaBoxOpen, FaStore, FaTrash, FaShoppingBag, FaRupeeSign } from
 import { MdDashboard } from "react-icons/md";
 import {
   getAdminStats, getAdminUsers, updateUserRole,
-  deleteUser, getAdminProducts, deleteProduct, updateProduct,
+  deleteUser, getAdminProducts, deleteProduct,
   getAdminOrders, updateOrderStatus, respondDeliveryDate,
   getAdminOffers, createOffer, updateOffer, deleteOffer,
 } from "../helpers/apiRequest";
 import { useAuth } from "../context/AuthContext";
 import { Link } from "react-router-dom";
 import { FaPen } from "react-icons/fa";
+import { EditProductModal } from "./AddProduct";
 
 
 const TABS = ["Overview", "Orders", "Offers", "Users", "Products"];
@@ -164,14 +165,11 @@ function Users() {
   );
 }
 
-const EMPTY_PRODUCT = { title: "", description: "", category: "", price: "", stock: "", image: "", status: "active" };
-
 // ── Products Tab ──────────────────────────────────────────────
 function Products() {
   const qc = useQueryClient();
   const [confirm, setConfirm] = useState(null);
-  const [editProduct, setEditProduct] = useState(null); // product being edited
-  const [editForm, setEditForm] = useState(EMPTY_PRODUCT);
+  const [editProduct, setEditProduct] = useState(null);
   const { user } = useAuth();
 
   const { data: products = [], isLoading } = useQuery({ queryKey: ["admin-products"], queryFn: () => getAdminProducts().then(r => r.data) });
@@ -182,16 +180,7 @@ function Products() {
     onError: () => toast.error("Failed to delete product"),
   });
 
-  const updateMutation = useMutation({
-    mutationFn: ({ id, data }) => updateProduct(id, data),
-    onSuccess: () => { qc.invalidateQueries(["admin-products"]); toast.success("Product updated"); setEditProduct(null); },
-    onError: (err) => toast.error(err.response?.data?.message || "Failed to update product"),
-  });
-
-  const openEdit = (p) => {
-    setEditForm({ title: p.title, description: p.description || "", category: p.category, price: p.price, stock: p.stock, image: p.image || "", status: p.status || "active" });
-    setEditProduct(p);
-  };
+  const openEdit = (p) => setEditProduct(p);
 
   if (isLoading) return <Spinner />;
 
@@ -205,53 +194,8 @@ function Products() {
         />
       )}
 
-      {/* Edit Product Modal */}
-      {editProduct && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm px-4">
-          <div className="bg-white rounded-3xl shadow-2xl p-7 w-full max-w-lg max-h-[90vh] overflow-y-auto">
-            <h3 className="font-extrabold text-gray-800 text-lg mb-5">Edit Product</h3>
-            <div className="flex flex-col gap-3">
-              <div className="grid grid-cols-2 gap-3">
-                {[["title","Title *","text"],["category","Category *","text"],["price","Price (₹) *","number"],["stock","Stock *","number"]].map(([k, label, type]) => (
-                  <div key={k}>
-                    <label className="block text-xs font-semibold text-gray-600 mb-1">{label}</label>
-                    <input type={type} value={editForm[k]} onChange={e => setEditForm({ ...editForm, [k]: e.target.value })}
-                      className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-orange-400 bg-gray-50" />
-                  </div>
-                ))}
-              </div>
-              <div>
-                <label className="block text-xs font-semibold text-gray-600 mb-1">Image URL</label>
-                <input value={editForm.image} onChange={e => setEditForm({ ...editForm, image: e.target.value })}
-                  placeholder="https://..." className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-orange-400 bg-gray-50" />
-              </div>
-              <div>
-                <label className="block text-xs font-semibold text-gray-600 mb-1">Description</label>
-                <textarea rows={3} value={editForm.description} onChange={e => setEditForm({ ...editForm, description: e.target.value })}
-                  className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-orange-400 bg-gray-50 resize-none" />
-              </div>
-              <div>
-                <label className="block text-xs font-semibold text-gray-600 mb-1">Status</label>
-                <select value={editForm.status} onChange={e => setEditForm({ ...editForm, status: e.target.value })}
-                  className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-orange-400 bg-gray-50">
-                  <option value="active">Active — visible to customers</option>
-                  <option value="inactive">Inactive — hidden from customers</option>
-                </select>
-              </div>
-            </div>
-            <div className="flex gap-3 mt-5">
-              <button onClick={() => setEditProduct(null)} className="flex-1 border border-gray-200 py-2.5 rounded-xl text-sm font-semibold text-gray-600 hover:bg-gray-50">Cancel</button>
-              <button
-                onClick={() => updateMutation.mutate({ id: editProduct.id, data: { ...editForm, price: Number(editForm.price), stock: Number(editForm.stock), status: editForm.status } })}
-                disabled={!editForm.title || !editForm.category || !editForm.price || updateMutation.isPending}
-                className="flex-1 bg-gradient-to-r from-orange-500 to-amber-500 text-white py-2.5 rounded-xl text-sm font-bold disabled:opacity-60"
-              >
-                {updateMutation.isPending ? "Saving..." : "Update Product"}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      {editProduct && <EditProductModal product={editProduct} onClose={() => setEditProduct(null)} />}  
+
 
       <div className="flex justify-end mb-4">
         <Link to="/products/add" className="bg-orange-500 text-white px-4 py-2 rounded-xl text-sm font-bold hover:bg-orange-600 transition">
@@ -445,7 +389,17 @@ function Orders() {
                   {items.map((item, i) => <p key={i} className="truncate">{item.title} ({item.weight} ×{item.quantity})</p>)}
                 </div>
                 <div className="flex items-center justify-between">
-                  <p className="font-bold text-orange-500">₹{parseFloat(o.total_amount).toFixed(2)}</p>
+                  <div className="flex flex-col gap-0.5">
+                    <p className="font-bold text-orange-500">₹{parseFloat(o.total_amount).toFixed(2)}</p>
+                    {o.payment_method && (
+                      <span className="text-xs text-gray-400 capitalize">
+                        {o.payment_method}
+                        {o.payment_method === "card" && o.card_last4 && ` ••• ${o.card_last4}`}
+                        {o.payment_method === "upi" && o.vpa && ` • ${o.vpa}`}
+                        {o.payment_method === "netbanking" && o.bank && ` • ${o.bank}`}
+                      </span>
+                    )}
+                  </div>
                   <div className="flex items-center gap-2">
                     {hasDeliveryRequest && deliveryResponse === "pending" && (
                       <button onClick={() => setDeliveryModal(o)} className="text-xs font-bold text-orange-500 border border-orange-300 px-2 py-1 rounded-lg">Respond</button>
@@ -470,7 +424,7 @@ function Orders() {
         <div className="hidden md:block overflow-x-auto">
           <table className="w-full text-sm">
             <thead className="bg-gray-50 border-b border-gray-100">
-              <tr>{["Order ID","Customer","Items","Total","Delivery Request","Status","Date","Action"].map(h => (
+              <tr>{["Order ID","Customer","Items","Total","Payment","Delivery Request","Status","Date","Action"].map(h => (
                 <th key={h} className="text-left px-5 py-3.5 text-xs font-bold text-gray-400 uppercase tracking-wider">{h}</th>
               ))}</tr>
             </thead>
@@ -485,6 +439,18 @@ function Orders() {
                     <td className="px-5 py-3.5"><p className="font-semibold text-gray-800 text-xs">{o.user_name}</p><p className="text-gray-400 text-xs">{o.user_email}</p></td>
                     <td className="px-5 py-3.5 max-w-[160px]">{items.map((item, i) => <p key={i} className="text-xs text-gray-600 truncate">{item.title} ({item.weight} ×{item.quantity})</p>)}</td>
                     <td className="px-5 py-3.5 font-bold text-orange-500">₹{parseFloat(o.total_amount).toFixed(2)}</td>
+                    <td className="px-5 py-3.5">
+                      {o.payment_method ? (
+                        <div className="flex flex-col gap-0.5">
+                          <span className="text-xs font-bold text-gray-700 capitalize">{o.payment_method}</span>
+                          {o.payment_method === "card" && o.card_network && <span className="text-xs text-gray-400">{o.card_network} •••• {o.card_last4}</span>}
+                          {o.payment_method === "upi" && o.vpa && <span className="text-xs text-gray-400">{o.vpa}</span>}
+                          {o.payment_method === "netbanking" && o.bank && <span className="text-xs text-gray-400">{o.bank}</span>}
+                          {o.payment_method === "wallet" && o.wallet && <span className="text-xs text-gray-400">{o.wallet}</span>}
+                          <span className={`text-xs font-semibold px-2 py-0.5 rounded-full w-fit ${ o.payment_status === "paid" ? "bg-green-100 text-green-600" : o.payment_status === "refunded" ? "bg-blue-100 text-blue-600" : "bg-yellow-100 text-yellow-600"}`}>{o.payment_status || "pending"}</span>
+                        </div>
+                      ) : <span className="text-xs text-gray-300">—</span>}
+                    </td>
                     <td className="px-5 py-3.5">
                       {hasDeliveryRequest ? (
                         <div className="flex flex-col gap-1">
