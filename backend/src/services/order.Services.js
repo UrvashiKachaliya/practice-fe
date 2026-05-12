@@ -1,8 +1,7 @@
 import db from "../config/db.js";
-import { sendOrderConfirmation, sendAdminOrderNotification, sendOrderStatusUpdate } from "./emailService.js";
+import { sendOrderConfirmation, sendAdminOrderNotification, sendOrderStatusUpdate, sendDeliveryDateResponse } from "./emailService.js";
 
-export const placeOrderService = async (userId, address) => {
-  // Get cart items
+export const placeOrderService = async (userId, address, requestedDeliveryDate) => {
   const [cartItems] = await db.promise().query(
     `SELECT c.id AS cart_id, c.quantity, c.weight, p.id AS product_id,
             p.title, p.price, p.stock
@@ -13,7 +12,6 @@ export const placeOrderService = async (userId, address) => {
 
   if (cartItems.length === 0) throw new Error("Cart is empty");
 
-  // Check stock
   for (const item of cartItems) {
     if (item.quantity > item.stock) throw new Error(`${item.title} has insufficient stock`);
   }
@@ -22,14 +20,12 @@ export const placeOrderService = async (userId, address) => {
   const deliveryFee = subtotal >= 499 ? 0 : 49;
   const totalAmount = subtotal + deliveryFee;
 
-  // Create order
   const [orderResult] = await db.promise().query(
-    "INSERT INTO orders (user_id, total_amount, delivery_fee, address) VALUES (?, ?, ?, ?)",
-    [userId, totalAmount, deliveryFee, address]
+    "INSERT INTO orders (user_id, total_amount, delivery_fee, address, requested_delivery_date) VALUES (?, ?, ?, ?, ?)",
+    [userId, totalAmount, deliveryFee, address, requestedDeliveryDate || null]
   );
   const orderId = orderResult.insertId;
 
-  // Insert order items + reduce stock
   for (const item of cartItems) {
     await db.promise().query(
       "INSERT INTO order_items (order_id, product_id, title, price, quantity, weight) VALUES (?, ?, ?, ?, ?, ?)",
@@ -41,20 +37,11 @@ export const placeOrderService = async (userId, address) => {
     );
   }
 
-  // Clear cart
   await db.promise().query("DELETE FROM cart WHERE user_id = ?", [userId]);
 
-  // Get user info for email
-  const [[user]] = await db.promise().query(
-    "SELECT name, email FROM users WHERE id = ?", [userId]
-  );
+  const [[user]] = await db.promise().query("SELECT name, email FROM users WHERE id = ?", [userId]);
+  const [[admin]] = await db.promise().query("SELECT email FROM users WHERE role = 'admin' LIMIT 1");
 
-  // Get admin email
-  const [[admin]] = await db.promise().query(
-    "SELECT email FROM users WHERE role = 'admin' LIMIT 1"
-  );
-
-  // Send emails (non-blocking)
   sendOrderConfirmation(user.email, user.name, orderId, cartItems, totalAmount, deliveryFee, address).catch(() => {});
   if (admin) sendAdminOrderNotification(admin.email, user.name, orderId, cartItems, totalAmount, address).catch(() => {});
 
@@ -63,7 +50,7 @@ export const placeOrderService = async (userId, address) => {
 
 export const getUserOrdersService = async (userId) => {
   const [orders] = await db.promise().query(
-    `SELECT o.*, 
+    `SELECT o.*,
       (SELECT JSON_ARRAYAGG(JSON_OBJECT(
         'id', oi.id, 'title', oi.title, 'price', oi.price,
         'quantity', oi.quantity, 'weight', oi.weight, 'product_id', oi.product_id
@@ -95,16 +82,61 @@ export const updateOrderStatusService = async (orderId, status) => {
 
   await db.promise().query("UPDATE orders SET status = ? WHERE id = ?", [status, orderId]);
 
-  // Get user info to send notification
   const [[order]] = await db.promise().query(
-    `SELECT o.address, u.name, u.email, u.contact 
-     FROM orders o JOIN users u ON o.user_id = u.id 
-     WHERE o.id = ?`, [orderId]
+    `SELECT o.address, u.name, u.email, u.contact
+     FROM orders o JOIN users u ON o.user_id = u.id WHERE o.id = ?`, [orderId]
   );
+  if (order) sendOrderStatusUpdate(order.email, order.name, orderId, status, order.contact).catch(() => {});
 
-  if (order) {
-    sendOrderStatusUpdate(order.email, order.name, orderId, status, order.contact).catch(() => {});
+  return { success: true };
+};
+
+export const repeatOrderService = async (orderId, userId) => {
+  // Get items from the previous order
+  const [items] = await db.promise().query(
+    "SELECT product_id, quantity, weight FROM order_items WHERE order_id = ?",
+    [orderId]
+  );
+  if (items.length === 0) throw new Error("Order not found");
+
+  // Add each item to cart (merge if exists)
+  for (const item of items) {
+    const [existing] = await db.promise().query(
+      "SELECT id, quantity FROM cart WHERE user_id = ? AND product_id = ? AND weight = ?",
+      [userId, item.product_id, item.weight]
+    );
+    if (existing.length > 0) {
+      await db.promise().query(
+        "UPDATE cart SET quantity = quantity + ? WHERE id = ?",
+        [item.quantity, existing[0].id]
+      );
+    } else {
+      await db.promise().query(
+        "INSERT INTO cart (user_id, product_id, quantity, weight) VALUES (?, ?, ?, ?)",
+        [userId, item.product_id, item.quantity, item.weight]
+      );
+    }
   }
+  return { success: true, message: "Items added to cart" };
+};
+
+export const respondDeliveryDateService = async (orderId, action, adminDate, reason) => {
+  if (action === "accept") {
+    await db.promise().query(
+      "UPDATE orders SET delivery_response = 'accepted', admin_delivery_date = ? WHERE id = ?",
+      [adminDate || null, orderId]
+    );
+  } else {
+    await db.promise().query(
+      "UPDATE orders SET delivery_response = 'rejected', rejection_reason = ?, admin_delivery_date = ? WHERE id = ?",
+      [reason || null, adminDate || null, orderId]
+    );
+  }
+
+  const [[order]] = await db.promise().query(
+    `SELECT o.*, u.name, u.email FROM orders o JOIN users u ON o.user_id = u.id WHERE o.id = ?`, [orderId]
+  );
+  if (order) sendDeliveryDateResponse(order.email, order.name, orderId, action, adminDate, reason).catch(() => {});
 
   return { success: true };
 };

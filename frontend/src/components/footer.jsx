@@ -12,7 +12,6 @@ const Footer = () => {
   //   "Masala Khakhra", "Methi Khakhra", "Jeera Khakhra",
   //   "Peri Peri Khakhra", "Plain Khakhra", "Multigrain Khakhra",
   // ];
-
   const quickLinks = [
     { label: "Home", to: "/" },
     { label: "All Products", to: "/products" },
@@ -43,7 +42,7 @@ const Footer = () => {
         <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-3">
           <div className="flex items-center gap-3 text-white">
             <span className="text-2xl">🌾</span>
-            <p className="font-semibold text-sm">Free delivery on orders above ₹499! Use code <span className="font-extrabold bg-white/20 px-2 py-0.5 rounded-lg">CRISPY10</span> for 10% off</p>
+            <p className="font-semibold text-sm">Free delivery on orders above ₹699! Use code <span className="font-extrabold bg-white/20 px-2 py-0.5 rounded-lg">CRISPY10</span> for 10% off</p>
           </div>
           <Link to="/products" className="shrink-0 bg-white text-orange-500 font-bold text-sm px-5 py-2 rounded-full hover:bg-orange-50 transition">
             Shop Now
@@ -54,7 +53,6 @@ const Footer = () => {
       {/* Main Footer */}
       <div className="max-w-7xl mx-auto px-6 py-14">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-10">
-
           {/* Brand */}
           <div className="lg:col-span-1">
             <div className="flex items-center gap-2 mb-4">
@@ -123,20 +121,20 @@ const Footer = () => {
             <ul className="flex flex-col gap-3 mb-6">
               <li className="flex items-start gap-3 text-sm">
                 <FiMapPin size={16} className="text-orange-400 shrink-0 mt-0.5" />
-                {/* <span>123 Khakhra Lane, Ahmedabad, Gujarat 380001</span> */}
+                <span>Khakhra Co., Shop No. 1, Ahmedabad, Gujarat 380001</span>
               </li>
               <li className="flex items-center gap-3 text-sm">
                 <FiPhone size={16} className="text-orange-400 shrink-0" />
-                {/* <a href="tel:+919876543210" className="hover:text-orange-400 transition">+91 98765 43210</a> */}
+                <a href="tel:+919876543210" className="hover:text-orange-400 transition">+91 98765 43210</a>
               </li>
               <li className="flex items-center gap-3 text-sm">
                 <FiMail size={16} className="text-orange-400 shrink-0" />
-                {/* <a href="mailto:hello@khakhraco.com" className="hover:text-orange-400 transition">hello@khakhraco.com</a> */}
+                <a href="mailto:hello@khakhraco.com" className="hover:text-orange-400 transition">hello@khakhraco.com</a>
               </li>
             </ul>
 
             {/* Newsletter */}
-            <h4 className="text-white font-bold text-sm mb-3">Newsletter</h4>
+            {/* <h4 className="text-white font-bold text-sm mb-3">Newsletter</h4>
             <form onSubmit={handleSubscribe} className="flex gap-2">
               <input
                 type="email"
@@ -152,7 +150,7 @@ const Footer = () => {
               >
                 Join
               </button>
-            </form>
+            </form> */}
           </div>
 
         </div>

@@ -5,12 +5,18 @@ import { FaUsers, FaBoxOpen, FaStore, FaTrash, FaShoppingBag, FaRupeeSign } from
 import { MdDashboard } from "react-icons/md";
 import {
   getAdminStats, getAdminUsers, updateUserRole,
-  deleteUser, getAdminProducts, deleteProduct,
-  getAdminOrders, updateOrderStatus,
+  deleteUser, getAdminProducts, deleteProduct, updateProduct,
+  getAdminOrders, updateOrderStatus, respondDeliveryDate,
   getAdminOffers, createOffer, updateOffer, deleteOffer,
 } from "../helpers/apiRequest";
+import { useAuth } from "../context/AuthContext";
+import { Link } from "react-router-dom";
+import { FaPen } from "react-icons/fa";
+
 
 const TABS = ["Overview", "Orders", "Offers", "Users", "Products"];
+
+
 
 const roleBadge = {
   admin: "bg-purple-100 text-purple-600",
@@ -20,11 +26,11 @@ const roleBadge = {
 
 function StatCard({ icon, label, value, color }) {
   return (
-    <div className="bg-white rounded-2xl border border-orange-100 shadow-sm p-6 flex items-center gap-5">
-      <div className={`w-14 h-14 rounded-2xl flex items-center justify-center text-2xl ${color}`}>{icon}</div>
+    <div className="bg-white rounded-2xl border border-orange-100 shadow-sm p-4 flex items-center gap-3">
+      <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-xl shrink-0 ${color}`}>{icon}</div>
       <div>
-        <p className="text-gray-400 text-sm">{label}</p>
-        <p className="text-3xl font-extrabold text-gray-800">{value ?? "—"}</p>
+        <p className="text-gray-400 text-xs">{label}</p>
+        <p className="text-xl font-extrabold text-gray-800">{value ?? "—"}</p>
       </div>
     </div>
   );
@@ -53,7 +59,7 @@ function Overview() {
   if (isLoading) return <Spinner />;
 
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-5">
+    <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-5 gap-3">
       <StatCard icon={<FaUsers />} label="Total Users" value={data?.totalUsers} color="bg-orange-50 text-orange-500" />
       <StatCard icon={<FaStore />} label="Total Sellers" value={data?.totalSellers} color="bg-blue-50 text-blue-500" />
       <StatCard icon={<FaBoxOpen />} label="Total Products" value={data?.totalProducts} color="bg-green-50 text-green-500" />
@@ -93,14 +99,38 @@ function Users() {
         />
       )}
       <div className="bg-white rounded-2xl border border-orange-100 shadow-sm overflow-hidden">
-        <div className="overflow-x-auto">
+        {/* Mobile cards */}
+        <div className="md:hidden divide-y divide-gray-200">
+          {users.map(u => (
+            <div key={u.id} className="p-4 flex items-center justify-between gap-3">
+              <div className="min-w-0">
+                <p className="font-semibold text-gray-800 text-sm truncate">{u.name}</p>
+                <p className="text-xs text-gray-400 truncate">{u.email}</p>
+                <div className="flex items-center gap-2 mt-1.5">
+                  <select value={u.role} onChange={e => roleMutation.mutate({ id: u.id, role: e.target.value })}
+                    className={`text-xs font-semibold px-2 py-0.5 rounded-full border-0 cursor-pointer focus:outline-none ${roleBadge[u.role]}`}>
+                    <option value="user">user</option>
+                    <option value="seller">seller</option>
+                    <option value="admin">admin</option>
+                  </select>
+                  <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${u.is_verified ? "bg-green-100 text-green-600" : "bg-red-100 text-red-500"}`}>
+                    {u.is_verified ? "✓" : "✗"}
+                  </span>
+                </div>
+              </div>
+              <button onClick={() => setConfirm(u)} className="text-red-400 hover:text-red-600 p-1.5 rounded-lg hover:bg-red-50 shrink-0">
+                <FaTrash size={13} />
+              </button>
+            </div>
+          ))}
+        </div>
+        {/* Desktop table */}
+        <div className="hidden md:block overflow-x-auto">
           <table className="w-full text-sm">
             <thead className="bg-gray-50 border-b border-gray-100">
-              <tr>
-                {["Name", "Email", "Contact", "Role", "Verified", "Action"].map(h => (
-                  <th key={h} className="text-left px-5 py-3.5 text-xs font-bold text-gray-400 uppercase tracking-wider">{h}</th>
-                ))}
-              </tr>
+              <tr>{["Name","Email","Contact","Role","Verified","Action"].map(h => (
+                <th key={h} className="text-left px-5 py-3.5 text-xs font-bold text-gray-400 uppercase tracking-wider">{h}</th>
+              ))}</tr>
             </thead>
             <tbody className="divide-y divide-gray-50">
               {users.map(u => (
@@ -109,11 +139,8 @@ function Users() {
                   <td className="px-5 py-3.5 text-gray-500">{u.email}</td>
                   <td className="px-5 py-3.5 text-gray-500">{u.contact || "—"}</td>
                   <td className="px-5 py-3.5">
-                    <select
-                      value={u.role}
-                      onChange={e => roleMutation.mutate({ id: u.id, role: e.target.value })}
-                      className={`text-xs font-semibold px-2.5 py-1 rounded-full border-0 cursor-pointer focus:outline-none focus:ring-2 focus:ring-orange-300 ${roleBadge[u.role]}`}
-                    >
+                    <select value={u.role} onChange={e => roleMutation.mutate({ id: u.id, role: e.target.value })}
+                      className={`text-xs font-semibold px-2.5 py-1 rounded-full border-0 cursor-pointer focus:outline-none focus:ring-2 focus:ring-orange-300 ${roleBadge[u.role]}`}>
                       <option value="user">user</option>
                       <option value="seller">seller</option>
                       <option value="admin">admin</option>
@@ -125,9 +152,7 @@ function Users() {
                     </span>
                   </td>
                   <td className="px-5 py-3.5">
-                    <button onClick={() => setConfirm(u)} className="text-red-400 hover:text-red-600 transition p-1.5 rounded-lg hover:bg-red-50">
-                      <FaTrash size={13} />
-                    </button>
+                    <button onClick={() => setConfirm(u)} className="text-red-400 hover:text-red-600 transition p-1.5 rounded-lg hover:bg-red-50"><FaTrash size={13} /></button>
                   </td>
                 </tr>
               ))}
@@ -139,10 +164,16 @@ function Users() {
   );
 }
 
+const EMPTY_PRODUCT = { title: "", description: "", category: "", price: "", stock: "", image: "", status: "active" };
+
 // ── Products Tab ──────────────────────────────────────────────
 function Products() {
   const qc = useQueryClient();
   const [confirm, setConfirm] = useState(null);
+  const [editProduct, setEditProduct] = useState(null); // product being edited
+  const [editForm, setEditForm] = useState(EMPTY_PRODUCT);
+  const { user } = useAuth();
+
   const { data: products = [], isLoading } = useQuery({ queryKey: ["admin-products"], queryFn: () => getAdminProducts().then(r => r.data) });
 
   const deleteMutation = useMutation({
@@ -150,6 +181,17 @@ function Products() {
     onSuccess: () => { qc.invalidateQueries(["admin-products"]); qc.invalidateQueries(["admin-stats"]); toast.success("Product deleted"); setConfirm(null); },
     onError: () => toast.error("Failed to delete product"),
   });
+
+  const updateMutation = useMutation({
+    mutationFn: ({ id, data }) => updateProduct(id, data),
+    onSuccess: () => { qc.invalidateQueries(["admin-products"]); toast.success("Product updated"); setEditProduct(null); },
+    onError: (err) => toast.error(err.response?.data?.message || "Failed to update product"),
+  });
+
+  const openEdit = (p) => {
+    setEditForm({ title: p.title, description: p.description || "", category: p.category, price: p.price, stock: p.stock, image: p.image || "", status: p.status || "active" });
+    setEditProduct(p);
+  };
 
   if (isLoading) return <Spinner />;
 
@@ -162,34 +204,102 @@ function Products() {
           onCancel={() => setConfirm(null)}
         />
       )}
+
+      {/* Edit Product Modal */}
+      {editProduct && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm px-4">
+          <div className="bg-white rounded-3xl shadow-2xl p-7 w-full max-w-lg max-h-[90vh] overflow-y-auto">
+            <h3 className="font-extrabold text-gray-800 text-lg mb-5">Edit Product</h3>
+            <div className="flex flex-col gap-3">
+              <div className="grid grid-cols-2 gap-3">
+                {[["title","Title *","text"],["category","Category *","text"],["price","Price (₹) *","number"],["stock","Stock *","number"]].map(([k, label, type]) => (
+                  <div key={k}>
+                    <label className="block text-xs font-semibold text-gray-600 mb-1">{label}</label>
+                    <input type={type} value={editForm[k]} onChange={e => setEditForm({ ...editForm, [k]: e.target.value })}
+                      className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-orange-400 bg-gray-50" />
+                  </div>
+                ))}
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-gray-600 mb-1">Image URL</label>
+                <input value={editForm.image} onChange={e => setEditForm({ ...editForm, image: e.target.value })}
+                  placeholder="https://..." className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-orange-400 bg-gray-50" />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-gray-600 mb-1">Description</label>
+                <textarea rows={3} value={editForm.description} onChange={e => setEditForm({ ...editForm, description: e.target.value })}
+                  className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-orange-400 bg-gray-50 resize-none" />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-gray-600 mb-1">Status</label>
+                <select value={editForm.status} onChange={e => setEditForm({ ...editForm, status: e.target.value })}
+                  className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-orange-400 bg-gray-50">
+                  <option value="active">Active — visible to customers</option>
+                  <option value="inactive">Inactive — hidden from customers</option>
+                </select>
+              </div>
+            </div>
+            <div className="flex gap-3 mt-5">
+              <button onClick={() => setEditProduct(null)} className="flex-1 border border-gray-200 py-2.5 rounded-xl text-sm font-semibold text-gray-600 hover:bg-gray-50">Cancel</button>
+              <button
+                onClick={() => updateMutation.mutate({ id: editProduct.id, data: { ...editForm, price: Number(editForm.price), stock: Number(editForm.stock), status: editForm.status } })}
+                disabled={!editForm.title || !editForm.category || !editForm.price || updateMutation.isPending}
+                className="flex-1 bg-gradient-to-r from-orange-500 to-amber-500 text-white py-2.5 rounded-xl text-sm font-bold disabled:opacity-60"
+              >
+                {updateMutation.isPending ? "Saving..." : "Update Product"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <div className="flex justify-end mb-4">
+        <Link to="/products/add" className="bg-orange-500 text-white px-4 py-2 rounded-xl text-sm font-bold hover:bg-orange-600 transition">
+          + Add Product
+        </Link>
+      </div>
+
       <div className="bg-white rounded-2xl border border-orange-100 shadow-sm overflow-hidden">
-        <div className="overflow-x-auto">
+        {/* Mobile cards */}
+        <div className="md:hidden divide-y divide-gray-200">
+          {products.map(p => (
+            <div key={p.id} className="p-4 flex items-center justify-between gap-3">
+              <div className="min-w-0 flex-1">
+                <p className="font-semibold text-gray-800 text-sm truncate">{p.title}</p>
+                <div className="flex items-center gap-2 mt-1 flex-wrap">
+                  <span className="text-xs bg-orange-100 text-orange-500 px-2 py-0.5 rounded-full">{p.category}</span>
+                  <span className="text-xs font-semibold text-gray-700">₹{p.price}</span>
+                  <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${p.stock > 0 ? "bg-green-100 text-green-600" : "bg-red-100 text-red-500"}`}>{p.stock > 0 ? p.stock : "Out"}</span>
+                  <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${p.status === "active" ? "bg-green-100 text-green-600" : "bg-gray-100 text-gray-500"}`}>{p.status || "active"}</span>
+                </div>
+              </div>
+              <div className="flex items-center gap-1 shrink-0">
+                <button onClick={() => openEdit(p)} className="text-blue-400 p-1.5 rounded-lg hover:bg-blue-50"><FaPen size={12} /></button>
+                <button onClick={() => setConfirm(p)} className="text-red-400 p-1.5 rounded-lg hover:bg-red-50"><FaTrash size={13} /></button>
+              </div>
+            </div>
+          ))}
+        </div>
+        {/* Desktop table */}
+        <div className="hidden md:block overflow-x-auto">
           <table className="w-full text-sm">
             <thead className="bg-gray-50 border-b border-gray-100">
-              <tr>
-                {["Title", "Category", "Price", "Stock", "Seller", "Action"].map(h => (
-                  <th key={h} className="text-left px-5 py-3.5 text-xs font-bold text-gray-400 uppercase tracking-wider">{h}</th>
-                ))}
-              </tr>
+              <tr>{["Title","Category","Price","Stock","Seller","Status","Action"].map(h => (
+                <th key={h} className="text-left px-5 py-3.5 text-xs font-bold text-gray-400 uppercase tracking-wider">{h}</th>
+              ))}</tr>
             </thead>
             <tbody className="divide-y divide-gray-50">
               {products.map(p => (
                 <tr key={p.id} className="hover:bg-orange-50/30 transition">
                   <td className="px-5 py-3.5 font-semibold text-gray-800 max-w-[180px] truncate">{p.title}</td>
-                  <td className="px-5 py-3.5">
-                    <span className="text-xs bg-orange-100 text-orange-500 px-2.5 py-1 rounded-full font-medium">{p.category}</span>
-                  </td>
+                  <td className="px-5 py-3.5"><span className="text-xs bg-orange-100 text-orange-500 px-2.5 py-1 rounded-full font-medium">{p.category}</span></td>
                   <td className="px-5 py-3.5 font-semibold text-gray-700">₹{p.price}</td>
-                  <td className="px-5 py-3.5">
-                    <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${p.stock > 0 ? "bg-green-100 text-green-600" : "bg-red-100 text-red-500"}`}>
-                      {p.stock > 0 ? p.stock : "Out"}
-                    </span>
-                  </td>
+                  <td className="px-5 py-3.5"><span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${p.stock > 0 ? "bg-green-100 text-green-600" : "bg-red-100 text-red-500"}`}>{p.stock > 0 ? p.stock : "Out"}</span></td>
                   <td className="px-5 py-3.5 text-gray-500">{p.seller_name}</td>
-                  <td className="px-5 py-3.5">
-                    <button onClick={() => setConfirm(p)} className="text-red-400 hover:text-red-600 transition p-1.5 rounded-lg hover:bg-red-50">
-                      <FaTrash size={13} />
-                    </button>
+                  <td className="px-5 py-3.5"><span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${p.status === "active" ? "bg-green-100 text-green-600" : "bg-gray-100 text-gray-500"}`}>{p.status || "active"}</span></td>
+                  <td className="px-5 py-3.5 flex items-center gap-2">
+                    <button onClick={() => openEdit(p)} className="text-blue-400 hover:text-blue-600 p-1.5 rounded-lg hover:bg-blue-50"><FaPen size={12} /></button>
+                    <button onClick={() => setConfirm(p)} className="text-red-400 hover:text-red-600 p-1.5 rounded-lg hover:bg-red-50"><FaTrash size={13} /></button>
                   </td>
                 </tr>
               ))}
@@ -210,8 +320,86 @@ const statusStyle = {
   cancelled: "bg-red-100 text-red-500",
 };
 
+const deliveryResponseStyle = {
+  pending:  "bg-yellow-50 text-yellow-600",
+  accepted: "bg-green-50 text-green-600",
+  rejected: "bg-red-50 text-red-500",
+};
+
+function DeliveryResponseModal({ order, onClose }) {
+  const qc = useQueryClient();
+  const [action, setAction] = useState("accept");
+  const [adminDate, setAdminDate] = useState("");
+  const [reason, setReason] = useState("Due to high order volume, we are unable to accommodate your requested date. We sincerely apologize for any inconvenience.");
+
+  const { mutate, isPending } = useMutation({
+    mutationFn: () => respondDeliveryDate(order.id, { action, adminDate: adminDate || null, reason: action === "reject" ? reason : null }),
+    onSuccess: () => { qc.invalidateQueries(["admin-orders"]); toast.success("Response sent to customer!"); onClose(); },
+    onError: () => toast.error("Failed to send response"),
+  });
+
+  const requestedDate = order.requested_delivery_date
+    ? new Date(order.requested_delivery_date).toLocaleDateString("en-IN", { weekday: "long", day: "numeric", month: "long", year: "numeric" })
+    : null;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm px-4">
+      <div className="bg-white rounded-3xl shadow-2xl p-7 w-full max-w-md">
+        <h3 className="font-extrabold text-gray-800 text-lg mb-1">Respond to Delivery Request</h3>
+        <p className="text-gray-400 text-sm mb-5">Order #{order.id} — {order.user_name}</p>
+
+        {/* Customer's requested date */}
+        <div className="bg-orange-50 border border-orange-200 rounded-xl p-4 mb-5">
+          <p className="text-xs font-bold text-orange-500 uppercase tracking-wider mb-1">Customer Requested</p>
+          <p className="font-extrabold text-gray-800">{requestedDate || "No specific date"}</p>
+        </div>
+
+        {/* Accept / Reject toggle */}
+        <div className="flex gap-2 mb-5">
+          <button onClick={() => setAction("accept")}
+            className={`flex-1 py-2.5 rounded-xl text-sm font-bold transition ${action === "accept" ? "bg-green-500 text-white" : "bg-gray-100 text-gray-500 hover:bg-green-50"}`}>
+            ✅ Accept
+          </button>
+          <button onClick={() => setAction("reject")}
+            className={`flex-1 py-2.5 rounded-xl text-sm font-bold transition ${action === "reject" ? "bg-red-500 text-white" : "bg-gray-100 text-gray-500 hover:bg-red-50"}`}>
+            ❌ Reject
+          </button>
+        </div>
+
+        {/* Admin's alternate date (shown for both) */}
+        <div className="mb-4">
+          <label className="block text-xs font-semibold text-gray-600 mb-1">
+            {action === "accept" ? "Confirm Delivery Date" : "Suggest Alternate Date (optional)"}
+          </label>
+          <input type="date" value={adminDate} onChange={e => setAdminDate(e.target.value)}
+            min={new Date().toISOString().split("T")[0]}
+            className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-orange-400 bg-gray-50" />
+        </div>
+
+        {/* Rejection reason */}
+        {action === "reject" && (
+          <div className="mb-4">
+            <label className="block text-xs font-semibold text-gray-600 mb-1">Reason for Rejection</label>
+            <textarea rows={3} value={reason} onChange={e => setReason(e.target.value)}
+              className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-orange-400 bg-gray-50 resize-none" />
+          </div>
+        )}
+
+        <div className="flex gap-3">
+          <button onClick={onClose} className="flex-1 border border-gray-200 py-2.5 rounded-xl text-sm font-semibold text-gray-600 hover:bg-gray-50">Cancel</button>
+          <button onClick={() => mutate()} disabled={isPending}
+            className={`flex-1 py-2.5 rounded-xl text-sm font-bold text-white disabled:opacity-60 transition ${action === "accept" ? "bg-green-500 hover:bg-green-600" : "bg-red-500 hover:bg-red-600"}`}>
+            {isPending ? "Sending..." : action === "accept" ? "Confirm & Notify" : "Reject & Notify"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function Orders() {
   const qc = useQueryClient();
+  const [deliveryModal, setDeliveryModal] = useState(null);
   const { data: orders = [], isLoading } = useQuery({
     queryKey: ["admin-orders"],
     queryFn: () => getAdminOrders().then(r => r.data),
@@ -229,63 +417,104 @@ function Orders() {
     return <div className="text-center py-16 text-gray-400">No orders this month.</div>;
 
   return (
-    <div className="bg-white rounded-2xl border border-orange-100 shadow-sm overflow-hidden">
-      <div className="px-5 py-3 border-b border-gray-50 flex items-center justify-between">
-        <p className="text-sm font-bold text-gray-600">This Month's Orders</p>
-        <span className="text-xs bg-orange-100 text-orange-500 px-2.5 py-1 rounded-full font-semibold">{orders.length} orders</span>
-      </div>
-      <div className="overflow-x-auto">
-        <table className="w-full text-sm">
-          <thead className="bg-gray-50 border-b border-gray-100">
-            <tr>
-              {["Order ID", "Customer", "Items", "Total", "Status", "Date", "Action"].map(h => (
-                <th key={h} className="text-left px-5 py-3.5 text-xs font-bold text-gray-400 uppercase tracking-wider">{h}</th>
-              ))}
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-50">
-            {orders.map(o => {
-              const items = typeof o.items === "string" ? JSON.parse(o.items) : (o.items || []);
-              return (
-                <tr key={o.id} className="hover:bg-orange-50/30 transition">
-                  <td className="px-5 py-3.5 font-bold text-gray-800">#{o.id}</td>
-                  <td className="px-5 py-3.5">
-                    <p className="font-semibold text-gray-800 text-xs">{o.user_name}</p>
-                    <p className="text-gray-400 text-xs">{o.user_email}</p>
-                  </td>
-                  <td className="px-5 py-3.5 max-w-[180px]">
-                    {items.map((item, i) => (
-                      <p key={i} className="text-xs text-gray-600 truncate">{item.title} ({item.weight} ×{item.quantity})</p>
-                    ))}
-                  </td>
-                  <td className="px-5 py-3.5 font-bold text-orange-500">₹{parseFloat(o.total_amount).toFixed(2)}</td>
-                  <td className="px-5 py-3.5">
-                    <span className={`text-xs font-bold px-2.5 py-1 rounded-full capitalize ${statusStyle[o.status]}`}>{o.status}</span>
-                  </td>
-                  <td className="px-5 py-3.5 text-xs text-gray-400">
-                    {new Date(o.created_at).toLocaleDateString("en-IN", { day: "numeric", month: "short" })}
-                  </td>
-                  <td className="px-5 py-3.5">
-                    <select
-                      value={o.status}
-                      onChange={e => statusMutation.mutate({ id: o.id, status: e.target.value })}
+    <>
+      {deliveryModal && <DeliveryResponseModal order={deliveryModal} onClose={() => setDeliveryModal(null)} />}
+
+      <div className="bg-white rounded-2xl border border-orange-100 shadow-sm overflow-hidden">
+        <div className="px-4 py-3 border-b border-gray-50 flex items-center justify-between">
+          <p className="text-sm font-bold text-gray-600">This Month's Orders</p>
+          <span className="text-xs bg-orange-100 text-orange-500 px-2.5 py-1 rounded-full font-semibold">{orders.length} orders</span>
+        </div>
+
+        {/* Mobile cards */}
+        <div className="md:hidden divide-y divide-gray-200">
+          {orders.map(o => {
+            const items = typeof o.items === "string" ? JSON.parse(o.items) : (o.items || []);
+            const hasDeliveryRequest = !!o.requested_delivery_date;
+            const deliveryResponse = o.delivery_response || "pending";
+            return (
+              <div key={o.id} className="p-4">
+                <div className="flex items-center justify-between mb-2">
+                  <div>
+                    <p className="font-bold text-gray-800 text-sm">#{o.id} — {o.user_name}</p>
+                    <p className="text-xs text-gray-400">{new Date(o.created_at).toLocaleDateString("en-IN", { day: "numeric", month: "short" })}</p>
+                  </div>
+                  <span className={`text-xs font-bold px-2 py-0.5 rounded-full capitalize ${statusStyle[o.status]}`}>{o.status}</span>
+                </div>
+                <div className="text-xs text-gray-500 mb-2">
+                  {items.map((item, i) => <p key={i} className="truncate">{item.title} ({item.weight} ×{item.quantity})</p>)}
+                </div>
+                <div className="flex items-center justify-between">
+                  <p className="font-bold text-orange-500">₹{parseFloat(o.total_amount).toFixed(2)}</p>
+                  <div className="flex items-center gap-2">
+                    {hasDeliveryRequest && deliveryResponse === "pending" && (
+                      <button onClick={() => setDeliveryModal(o)} className="text-xs font-bold text-orange-500 border border-orange-300 px-2 py-1 rounded-lg">Respond</button>
+                    )}
+                    <select value={o.status} onChange={e => statusMutation.mutate({ id: o.id, status: e.target.value })}
                       disabled={o.status === "cancelled" || o.status === "delivered"}
-                      className="text-xs border border-gray-200 rounded-lg px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-orange-300 disabled:opacity-50 cursor-pointer"
-                    >
+                      className="text-xs border border-gray-200 rounded-lg px-2 py-1 focus:outline-none disabled:opacity-50">
                       <option value="pending">Pending</option>
                       <option value="confirmed">Confirmed</option>
                       <option value="shipped">Shipped</option>
                       <option value="delivered">Delivered</option>
                       <option value="cancelled">Cancel</option>
                     </select>
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
+        {/* Desktop table */}
+        <div className="hidden md:block overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead className="bg-gray-50 border-b border-gray-100">
+              <tr>{["Order ID","Customer","Items","Total","Delivery Request","Status","Date","Action"].map(h => (
+                <th key={h} className="text-left px-5 py-3.5 text-xs font-bold text-gray-400 uppercase tracking-wider">{h}</th>
+              ))}</tr>
+            </thead>
+            <tbody className="divide-y divide-gray-50">
+              {orders.map(o => {
+                const items = typeof o.items === "string" ? JSON.parse(o.items) : (o.items || []);
+                const hasDeliveryRequest = !!o.requested_delivery_date;
+                const deliveryResponse = o.delivery_response || "pending";
+                return (
+                  <tr key={o.id} className="hover:bg-orange-50/30 transition">
+                    <td className="px-5 py-3.5 font-bold text-gray-800">#{o.id}</td>
+                    <td className="px-5 py-3.5"><p className="font-semibold text-gray-800 text-xs">{o.user_name}</p><p className="text-gray-400 text-xs">{o.user_email}</p></td>
+                    <td className="px-5 py-3.5 max-w-[160px]">{items.map((item, i) => <p key={i} className="text-xs text-gray-600 truncate">{item.title} ({item.weight} ×{item.quantity})</p>)}</td>
+                    <td className="px-5 py-3.5 font-bold text-orange-500">₹{parseFloat(o.total_amount).toFixed(2)}</td>
+                    <td className="px-5 py-3.5">
+                      {hasDeliveryRequest ? (
+                        <div className="flex flex-col gap-1">
+                          <p className="text-xs font-semibold text-gray-700">{new Date(o.requested_delivery_date).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}</p>
+                          <span className={`text-xs font-semibold px-2 py-0.5 rounded-full w-fit ${deliveryResponseStyle[deliveryResponse]}`}>{deliveryResponse}</span>
+                          {deliveryResponse === "pending" && <button onClick={() => setDeliveryModal(o)} className="text-xs font-bold text-orange-500 hover:text-orange-600 underline mt-0.5">Respond</button>}
+                        </div>
+                      ) : <span className="text-xs text-gray-300">—</span>}
+                    </td>
+                    <td className="px-5 py-3.5"><span className={`text-xs font-bold px-2.5 py-1 rounded-full capitalize ${statusStyle[o.status]}`}>{o.status}</span></td>
+                    <td className="px-5 py-3.5 text-xs text-gray-400">{new Date(o.created_at).toLocaleDateString("en-IN", { day: "numeric", month: "short" })}</td>
+                    <td className="px-5 py-3.5">
+                      <select value={o.status} onChange={e => statusMutation.mutate({ id: o.id, status: e.target.value })}
+                        disabled={o.status === "cancelled" || o.status === "delivered"}
+                        className="text-xs border border-gray-200 rounded-lg px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-orange-300 disabled:opacity-50 cursor-pointer">
+                        <option value="pending">Pending</option>
+                        <option value="confirmed">Confirmed</option>
+                        <option value="shipped">Shipped</option>
+                        <option value="delivered">Delivered</option>
+                        <option value="cancelled">Cancel</option>
+                      </select>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
       </div>
-    </div>
+    </>
   );
 }
 
@@ -458,7 +687,7 @@ export default function AdminDashboard() {
   const [tab, setTab] = useState("Overview");
 
   return (
-    <div className="min-h-screen bg-amber-50 py-8 px-4">
+    <div className="min-h-screen bg-amber-50 py-4 px-3 sm:py-8 sm:px-4">
       <div className="max-w-6xl mx-auto">
 
         {/* Header */}
@@ -472,13 +701,13 @@ export default function AdminDashboard() {
           </div>
         </div>
 
-        {/* Tabs */}
-        <div className="flex gap-1 bg-white border border-orange-100 rounded-2xl p-1.5 w-fit mb-7 shadow-sm">
+        {/* Tabs — scrollable on mobile */}
+        <div className="flex gap-1 bg-white border border-orange-100 rounded-2xl p-1.5 mb-7 shadow-sm overflow-x-auto">
           {TABS.map(t => (
             <button
               key={t}
               onClick={() => setTab(t)}
-              className={`px-5 py-2 rounded-xl text-sm font-semibold transition ${tab === t ? "bg-gradient-to-r from-orange-500 to-amber-500 text-white shadow-sm" : "text-gray-500 hover:text-orange-500"}`}
+              className={`px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold transition whitespace-nowrap shrink-0 ${tab === t ? "bg-gradient-to-r from-orange-500 to-amber-500 text-white shadow-sm" : "text-gray-500 hover:text-orange-500"}`}
             >
               {t}
             </button>

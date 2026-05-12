@@ -7,6 +7,7 @@ import { IoSearchOutline } from "react-icons/io5";
 import { FiHome, FiInfo, FiPhone } from "react-icons/fi";
 import { useAuth } from "../context/AuthContext";
 import { useCart } from "../context/CartContext";
+import SearchBar from "./SearchBar";
 
 const profileMenuItems = [
   { to: "/profile", icon: <FaUserCircle size={16} />, label: "My Profile" },
@@ -22,10 +23,26 @@ const navLinks = [
   { to: "/contact", icon: <FiPhone size={18} />, label: "Contact" },
 ];
 
+function LogoutConfirm({ onConfirm, onCancel }) {
+  return (
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/40 backdrop-blur-sm px-4">
+      <div className="bg-white rounded-3xl shadow-2xl border border-orange-100 w-full max-w-xs p-8 text-center">
+        <div className="text-5xl mb-3">🌾</div>
+        <h3 className="text-lg font-extrabold text-gray-800 mb-1">Leaving so soon?</h3>
+        <p className="text-gray-400 text-sm mb-6">Your crispy khakhras will miss you! 😢</p>
+        <div className="flex gap-3">
+          <button onClick={onCancel} className="flex-1 border border-gray-200 py-2.5 rounded-xl text-sm font-semibold text-gray-600 hover:bg-gray-50 transition">Stay</button>
+          <button onClick={onConfirm} className="flex-1 bg-gradient-to-r from-orange-500 to-amber-500 text-white py-2.5 rounded-xl text-sm font-bold hover:from-orange-600 hover:to-amber-600 transition">Logout</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function Navbar() {
   const [isMobile, setIsMobile] = useState(false);
   const [showProfile, setShowProfile] = useState(false);
-  const [search, setSearch] = useState("");
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const { user, logout } = useAuth();
   const { cartCount } = useCart();
   const navigate = useNavigate();
@@ -55,6 +72,7 @@ function Navbar() {
     logout();
     setShowProfile(false);
     setIsMobile(false);
+    setShowLogoutConfirm(false);
     navigate("/signin");
   };
 
@@ -71,6 +89,7 @@ function Navbar() {
 
   return (
     <>
+      {showLogoutConfirm && <LogoutConfirm onConfirm={handleLogout} onCancel={() => setShowLogoutConfirm(false)} />}
       <nav className="bg-white shadow-sm border-b border-orange-100 px-4 md:px-6 py-3 relative z-50">
         <div className="flex items-center justify-between gap-4 max-w-7xl mx-auto">
 
@@ -81,16 +100,7 @@ function Navbar() {
           </Link>
 
           {/* Search Bar - Desktop */}
-          <form onSubmit={handleSearch} className="hidden md:flex flex-1 max-w-sm items-center bg-gray-50 border border-gray-200 rounded-full px-4 py-2 gap-2 focus-within:border-orange-400 focus-within:bg-white transition">
-            <IoSearchOutline size={17} className="text-gray-400 shrink-0" />
-            <input
-              type="text"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              // placeholder="Search khakhras..."
-              className="flex-1 outline-none text-sm bg-transparent"
-            />
-          </form>
+          <SearchBar className="hidden md:flex flex-1 max-w-sm" />
 
           {/* Desktop Nav */}
           <div className="hidden md:flex items-center gap-5">
@@ -167,7 +177,7 @@ function Navbar() {
                       </ul>
                       <div className="border-t border-gray-100">
                         <button
-                          onClick={handleLogout}
+                          onClick={() => { setShowProfile(false); setShowLogoutConfirm(true); }}
                           className="flex items-center gap-3 w-full px-4 py-2.5 text-sm text-red-500 hover:bg-red-50 transition"
                         >
                           <FaSignOutAlt size={15} /> Logout
@@ -262,16 +272,7 @@ function Navbar() {
 
           {/* Mobile Search */}
           <div className="px-5 py-3 border-b border-gray-100">
-            <form onSubmit={handleSearch} className="flex items-center bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 gap-2 focus-within:border-orange-400 transition">
-              <IoSearchOutline size={17} className="text-gray-400 shrink-0" />
-              <input
-                type="text"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                // placeholder="Search khakhras..."
-                className="flex-1 outline-none text-sm bg-transparent"
-              />
-            </form>
+            <SearchBar onSearch={() => setIsMobile(false)} className="w-full" />
           </div>
 
           {/* Nav Links */}
@@ -320,7 +321,7 @@ function Navbar() {
         <div className="shrink-0 px-5 py-4 border-t border-gray-100">
           {user ? (
             <button
-              onClick={handleLogout}
+              onClick={() => { setIsMobile(false); setShowLogoutConfirm(true); }}
               className="flex items-center justify-center gap-2 w-full py-3 rounded-xl bg-red-50 text-red-500 font-semibold text-sm hover:bg-red-100 transition"
             >
               <FaSignOutAlt size={15} /> Logout

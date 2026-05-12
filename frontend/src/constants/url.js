@@ -16,4 +16,5 @@ export const API_ENDPOINTS = {
   ADMIN_ORDERS: "/api/admin/orders",
   OFFERS: "/api/offers",
   ADMIN_OFFERS: "/api/offers/admin",
+  WISHLIST: "/api/wishlist",
 };

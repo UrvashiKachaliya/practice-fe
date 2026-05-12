@@ -1,6 +1,6 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { getAllProducts, getActiveOffers } from "../helpers/apiRequest";
 import { useAuth } from "../context/AuthContext";
 import { FaLeaf, FaTruck, FaAward, FaHeart, FaChevronLeft, FaChevronRight } from "react-icons/fa";
@@ -194,12 +194,24 @@ function OffersSlider() {
 function Products() {
   const { user } = useAuth();
   const canAddProduct = user?.role === "seller" || user?.role === "admin";
+  const [searchParams] = useSearchParams();
+  const searchQuery = searchParams.get("search")?.toLowerCase().trim() || "";
 
   const { data, isLoading } = useQuery({
     queryKey: ["products"],
     queryFn: getAllProducts,
     select: (res) => res.data.products,
   });
+
+  const filtered = useMemo(() => {
+    if (!data) return [];
+    if (!searchQuery) return data;
+    return data.filter(p =>
+      p.title.toLowerCase().includes(searchQuery) ||
+      p.category.toLowerCase().includes(searchQuery) ||
+      p.seller_name?.toLowerCase().includes(searchQuery)
+    );
+  }, [data, searchQuery]);
 
   return (
     <div className="min-h-screen bg-amber-50">
@@ -229,25 +241,33 @@ function Products() {
       <section className="max-w-6xl mx-auto px-4 py-10">
         <div className="flex items-center justify-between mb-6">
           <div>
-            <h2 className="text-2xl font-extrabold text-gray-800">Our Khakhras</h2>
-            <p className="text-gray-400 text-sm mt-0.5">Fresh batches, crispy every time</p>
+            {searchQuery ? (
+              <>
+                <h2 className="text-2xl font-extrabold text-gray-800">Search results for "{searchQuery}"</h2>
+                <p className="text-gray-400 text-sm mt-0.5">{filtered.length} product{filtered.length !== 1 ? "s" : ""} found</p>
+              </>
+            ) : (
+              <>
+                <h2 className="text-2xl font-extrabold text-gray-800">Our Khakhras</h2>
+                <p className="text-gray-400 text-sm mt-0.5">Fresh batches, crispy every time</p>
+              </>
+            )}
           </div>
-          {canAddProduct && (
-            <Link to="/products/add" className="bg-orange-500 text-white px-4 py-2 rounded-xl text-sm font-bold hover:bg-orange-600 transition">
-              + Add Product
-            </Link>
-          )}
         </div>
 
         {isLoading ? (
           <div className="flex justify-center py-20">
             <div className="w-8 h-8 border-4 border-orange-400 border-t-transparent rounded-full animate-spin" />
           </div>
-        ) : !data || data.length === 0 ? (
-          <div className="text-center py-20 text-gray-400">No products found.</div>
+        ) : filtered.length === 0 ? (
+          <div className="text-center py-20">
+            <div className="text-5xl mb-3">🔍</div>
+            <p className="text-gray-500 font-semibold">No products found for "{searchQuery}"</p>
+            <p className="text-gray-400 text-sm mt-1">Try a different keyword</p>
+          </div>
         ) : (
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-            {data.map((product) => (
+            {filtered.map((product) => (
               <Link
                 key={product.id}
                 to={`/products/${product.id}`}

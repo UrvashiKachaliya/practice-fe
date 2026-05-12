@@ -14,6 +14,7 @@ import adminRoutes from "./src/routes/adminRoutes.js";
 import cartRoutes from "./src/routes/cartRoutes.js";
 import orderRoutes from "./src/routes/orderRoutes.js";
 import offerRoutes from "./src/routes/offerRoutes.js";
+import wishlistRoutes from "./src/routes/wishlistRoutes.js";
 
 const PORT = process.env.PORT || 8000;
 
@@ -31,6 +32,7 @@ app.use("/api/admin", adminRoutes);
 app.use("/api/cart", cartRoutes);
 app.use("/api/orders", orderRoutes);
 app.use("/api/offers", offerRoutes);
+app.use("/api/wishlist", wishlistRoutes);
 
 
 // ── 404 handler ───────────────────────────────────────────────

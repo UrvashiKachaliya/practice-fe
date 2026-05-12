@@ -175,3 +175,60 @@ export const sendOrderStatusUpdate = async (email, name, orderId, status, contac
     `,
   });
 };
+
+export const sendDeliveryDateResponse = async (email, name, orderId, action, adminDate, reason) => {
+  const isAccepted = action === "accept";
+  const formattedDate = adminDate
+    ? new Date(adminDate).toLocaleDateString("en-IN", { weekday: "long", day: "numeric", month: "long", year: "numeric" })
+    : null;
+
+  await transporter.sendMail({
+    from: process.env.EMAIL_USER,
+    to: email,
+    subject: isAccepted
+      ? `🎉 Delivery Date Confirmed - Order #${orderId} | Khakhra Co.`
+      : `💛 About Your Delivery Request - Order #${orderId} | Khakhra Co.`,
+    html: isAccepted ? `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <div style="background: linear-gradient(135deg, #f97316, #f59e0b); padding: 30px; text-align: center; border-radius: 12px 12px 0 0;">
+          <div style="font-size: 52px;">🎉</div>
+          <h2 style="color: white; margin: 8px 0 0;">Your Delivery Date is Confirmed!</h2>
+        </div>
+        <div style="background: #fff; padding: 30px; border: 1px solid #f3f4f6; border-top: none; border-radius: 0 0 12px 12px;">
+          <p>Dear <strong>${name}</strong>,</p>
+          <p style="color: #374151; line-height: 1.7;">We are absolutely delighted to confirm your delivery! Your trust means the world to us, and we promise to make sure your order arrives fresh, crispy, and full of love. 🌾</p>
+          <div style="background: #fff7ed; border-radius: 12px; padding: 20px; margin: 20px 0; text-align: center; border: 2px solid #f97316;">
+            <p style="margin: 0; color: #666; font-size: 13px;">Your Confirmed Delivery Date</p>
+            <p style="margin: 8px 0 0; font-size: 22px; font-weight: bold; color: #f97316;">${formattedDate || "As scheduled"}</p>
+            <p style="margin: 4px 0 0; color: #666; font-size: 12px;">Order #${orderId}</p>
+          </div>
+          <p style="color: #374151; line-height: 1.7;">We can't wait for you to enjoy every crispy bite. Thank you for being such a wonderful part of the Khakhra Co. family. Your happiness is our greatest reward! ❤️</p>
+          <p style="color: #f97316; font-weight: bold;">With love & crunch,<br/>The Khakhra Co. Team 🌾</p>
+        </div>
+      </div>
+    ` : `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <div style="background: linear-gradient(135deg, #f97316, #f59e0b); padding: 30px; text-align: center; border-radius: 12px 12px 0 0;">
+          <div style="font-size: 52px;">💛</div>
+          <h2 style="color: white; margin: 8px 0 0;">A Little Update on Your Delivery</h2>
+        </div>
+        <div style="background: #fff; padding: 30px; border: 1px solid #f3f4f6; border-top: none; border-radius: 0 0 12px 12px;">
+          <p>Dear <strong>${name}</strong>,</p>
+          <p style="color: #374151; line-height: 1.7;">We truly appreciate your trust in us and we are so grateful for your order. With a heavy heart, we need to share that we are unable to fulfill your requested delivery date for Order <strong>#${orderId}</strong>.</p>
+          <div style="background: #fff7ed; border-radius: 12px; padding: 16px; margin: 20px 0; border-left: 4px solid #f97316;">
+            <p style="margin: 0; font-weight: bold; color: #374151;">Reason:</p>
+            <p style="margin: 8px 0 0; color: #666;">${reason || "Due to high order volume, we are unable to accommodate your requested date. We sincerely apologize for any inconvenience."}</p>
+          </div>
+          ${formattedDate ? `
+          <div style="background: #f0fdf4; border-radius: 12px; padding: 20px; margin: 20px 0; text-align: center; border: 2px solid #22c55e;">
+            <p style="margin: 0; color: #666; font-size: 13px;">🎉 But here's the good news! We can deliver on:</p>
+            <p style="margin: 8px 0 0; font-size: 22px; font-weight: bold; color: #22c55e;">${formattedDate}</p>
+            <p style="margin: 4px 0 0; color: #666; font-size: 12px;">We hope this works for you!</p>
+          </div>` : ""}
+          <p style="color: #374151; line-height: 1.7;">Your satisfaction is our top priority. If you have any questions, please don't hesitate to reach out. We are always here for you. 🌾</p>
+          <p style="color: #f97316; font-weight: bold;">With warmth & apologies,<br/>The Khakhra Co. Team 🌾</p>
+        </div>
+      </div>
+    `,
+  });
+};

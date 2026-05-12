@@ -1,11 +1,20 @@
-import { placeOrderService, getUserOrdersService, getAdminOrdersService, updateOrderStatusService } from "../services/order.Services.js";
+import { placeOrderService, getUserOrdersService, getAdminOrdersService, updateOrderStatusService, respondDeliveryDateService, repeatOrderService } from "../services/order.Services.js";
 import logger from "../utils/logger.js";
 
+export const repeatOrder = async (req, res) => {
+  try {
+    const data = await repeatOrderService(req.params.id, req.user.id);
+    res.json(data);
+  } catch (e) {
+    res.status(400).json({ message: e.message });
+  }
+};
+
 export const placeOrder = async (req, res) => {
-  const { address } = req.body;
+  const { address, requestedDeliveryDate } = req.body;
   if (!address) return res.status(400).json({ message: "Delivery address is required" });
   try {
-    const data = await placeOrderService(req.user.id, address);
+    const data = await placeOrderService(req.user.id, address, requestedDeliveryDate);
     logger.info({ message: "Order placed", userId: req.user.id, orderId: data.orderId });
     res.status(201).json(data);
   } catch (e) {
@@ -39,6 +48,19 @@ export const updateOrderStatus = async (req, res) => {
     res.json(data);
   } catch (e) {
     logger.error({ message: "updateOrderStatus failed", orderId: req.params.id, error: e.message });
+    res.status(400).json({ message: e.message });
+  }
+};
+
+export const respondDeliveryDate = async (req, res) => {
+  const { action, adminDate, reason } = req.body;
+  if (!action || !["accept", "reject"].includes(action))
+    return res.status(400).json({ message: "action must be accept or reject" });
+  try {
+    const data = await respondDeliveryDateService(req.params.id, action, adminDate, reason);
+    logger.info({ message: "Delivery date response sent", orderId: req.params.id, action, adminId: req.user.id });
+    res.json(data);
+  } catch (e) {
     res.status(400).json({ message: e.message });
   }
 };

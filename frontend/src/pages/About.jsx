@@ -49,7 +49,7 @@ function About() {
           <h2 className="text-2xl font-extrabold text-gray-800 mb-4">Our Story</h2>
           <div className="text-gray-600 leading-relaxed space-y-4">
             <p>
-              Founded in 2020, Khakhra Co. started with a simple mission: to share the authentic taste of traditional Gujarati khakhras with food lovers across India. What began as a small home kitchen operation has now grown into a trusted brand serving thousands of happy customers.
+              Founded in 2020, Khakhra Co. started with a simple mission: to share the authentic taste of traditional Gujarati khakhras with food lovers across Gujarat. What began as a small home kitchen operation has now grown into a trusted brand serving thousands of happy customers.
             </p>
             <p>
               Our khakhras are made using time-tested recipes that have been perfected over generations. We source the finest ingredients directly from local farmers and use traditional methods to ensure every khakhra is crispy, flavorful, and nutritious.

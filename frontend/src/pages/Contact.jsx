@@ -18,7 +18,7 @@ const faqs = [
   },
   {
     q: "How long does delivery take?",
-    a: "We deliver within 2-3 business days across India. Express delivery is available in select cities.",
+    a: "During Jain festivals and peak seasonal rush, order preparation and delivery may take a little extra time as we prepare everything fresh with care.",
   },
 ];
 
