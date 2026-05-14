@@ -23,6 +23,7 @@ export const removeCartItem = (id) => axiosInstance.delete(`${API_ENDPOINTS.CART
 export const placeOrder = (data) => axiosInstance.post(API_ENDPOINTS.ORDERS, data);
 export const getUserOrders = () => axiosInstance.get(API_ENDPOINTS.ORDERS);
 export const repeatOrder = (id) => axiosInstance.post(`${API_ENDPOINTS.ORDERS}/${id}/repeat`);
+export const cancelOrder = (id) => axiosInstance.put(`${API_ENDPOINTS.ORDERS}/${id}/cancel`);
 
 // Payments
 export const createPaymentOrder = (amount) => axiosInstance.post("/api/payments/create-order", { amount });
@@ -42,6 +43,7 @@ export const respondDeliveryDate = (id, data) => axiosInstance.put(`${API_ENDPOI
 // Offers
 export const getActiveOffers = () => axiosInstance.get(API_ENDPOINTS.OFFERS);
 export const getAdminOffers = () => axiosInstance.get(API_ENDPOINTS.ADMIN_OFFERS);
+export const validateCoupon = (data) => axiosInstance.post(`${API_ENDPOINTS.OFFERS}/validate`, data);
 export const createOffer = (data) => axiosInstance.post(API_ENDPOINTS.OFFERS, data);
 export const updateOffer = (id, data) => axiosInstance.put(`${API_ENDPOINTS.OFFERS}/${id}`, data);
 export const deleteOffer = (id) => axiosInstance.delete(`${API_ENDPOINTS.OFFERS}/${id}`);
@@ -50,3 +52,11 @@ export const deleteOffer = (id) => axiosInstance.delete(`${API_ENDPOINTS.OFFERS}
 export const getWishlist = () => axiosInstance.get(API_ENDPOINTS.WISHLIST);
 export const toggleWishlist = (productId) => axiosInstance.post(`${API_ENDPOINTS.WISHLIST}/toggle`, { productId });
 export const checkWishlist = (productId) => axiosInstance.get(`${API_ENDPOINTS.WISHLIST}/check/${productId}`);
+
+// Reviews
+export const addReview = (data) => axiosInstance.post("/api/reviews", data);
+export const getProductReviews = (productId) => axiosInstance.get(`/api/reviews/${productId}`);
+export const likeReview = (id) => axiosInstance.post(`/api/reviews/${id}/like`);
+export const getAdminReviews = () => axiosInstance.get("/api/reviews/admin/all");
+export const deleteReview = (id) => axiosInstance.delete(`/api/reviews/admin/${id}`);
+export const addManualReview = (data) => axiosInstance.post("/api/reviews/admin/manual", data);

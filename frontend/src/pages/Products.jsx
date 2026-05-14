@@ -2,7 +2,6 @@ import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Link, useSearchParams } from "react-router-dom";
 import { getAllProducts, getActiveOffers } from "../helpers/apiRequest";
-import { useAuth } from "../context/AuthContext";
 import { FaLeaf, FaTruck, FaAward, FaHeart, FaChevronLeft, FaChevronRight } from "react-icons/fa";
 import { FiArrowRight } from "react-icons/fi";
 
@@ -152,6 +151,11 @@ function OffersSlider() {
             )}
             <h3 className="text-xl md:text-2xl font-extrabold">{offer.title}</h3>
             {offer.subtitle && <p className="text-white/80 text-sm mt-0.5">{offer.subtitle}</p>}
+            {offer.code && (
+              <p className="text-white text-xs font-bold mt-1">
+                Use code <span className="bg-white/20 px-2 py-0.5 rounded-lg">{offer.code}</span>
+              </p>
+            )}
             {offer.expires_at && (
               <p className="text-white/60 text-xs mt-1">
                 ⏰ Expires {new Date(offer.expires_at).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}
@@ -192,8 +196,6 @@ function OffersSlider() {
 
 // ── Main Page ─────────────────────────────────────────────────
 function Products() {
-  const { user } = useAuth();
-  const canAddProduct = user?.role === "seller" || user?.role === "admin";
   const [searchParams] = useSearchParams();
   const searchQuery = searchParams.get("search")?.toLowerCase().trim() || "";
 

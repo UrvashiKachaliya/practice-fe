@@ -8,16 +8,13 @@ import {
   deleteUser, getAdminProducts, deleteProduct,
   getAdminOrders, updateOrderStatus, respondDeliveryDate,
   getAdminOffers, createOffer, updateOffer, deleteOffer,
+  getAdminReviews,  deleteReview, addManualReview, getAllProducts,
 } from "../helpers/apiRequest";
-import { useAuth } from "../context/AuthContext";
 import { Link } from "react-router-dom";
 import { FaPen } from "react-icons/fa";
 import { EditProductModal } from "./AddProduct";
 
-
-const TABS = ["Overview", "Orders", "Offers", "Users", "Products"];
-
-
+const TABS = ["Overview", "Orders", "Offers", "Reviews", "Users", "Products"];
 
 const roleBadge = {
   admin: "bg-purple-100 text-purple-600",
@@ -170,7 +167,6 @@ function Products() {
   const qc = useQueryClient();
   const [confirm, setConfirm] = useState(null);
   const [editProduct, setEditProduct] = useState(null);
-  const { user } = useAuth();
 
   const { data: products = [], isLoading } = useQuery({ queryKey: ["admin-products"], queryFn: () => getAdminProducts().then(r => r.data) });
 
@@ -393,10 +389,14 @@ function Orders() {
                     <p className="font-bold text-orange-500">₹{parseFloat(o.total_amount).toFixed(2)}</p>
                     {o.payment_method && (
                       <span className="text-xs text-gray-400 capitalize">
-                        {o.payment_method}
-                        {o.payment_method === "card" && o.card_last4 && ` ••• ${o.card_last4}`}
-                        {o.payment_method === "upi" && o.vpa && ` • ${o.vpa}`}
-                        {o.payment_method === "netbanking" && o.bank && ` • ${o.bank}`}
+                        {o.payment_method === "cod" ? "💵 Cash on Delivery" : (
+                          <>
+                            {o.payment_method}
+                            {o.payment_method === "card" && o.card_last4 && ` ••• ${o.card_last4}`}
+                            {o.payment_method === "upi" && o.vpa && ` • ${o.vpa}`}
+                            {o.payment_method === "netbanking" && o.bank && ` • ${o.bank}`}
+                          </>
+                        )}
                       </span>
                     )}
                   </div>
@@ -442,12 +442,20 @@ function Orders() {
                     <td className="px-5 py-3.5">
                       {o.payment_method ? (
                         <div className="flex flex-col gap-0.5">
-                          <span className="text-xs font-bold text-gray-700 capitalize">{o.payment_method}</span>
-                          {o.payment_method === "card" && o.card_network && <span className="text-xs text-gray-400">{o.card_network} •••• {o.card_last4}</span>}
-                          {o.payment_method === "upi" && o.vpa && <span className="text-xs text-gray-400">{o.vpa}</span>}
-                          {o.payment_method === "netbanking" && o.bank && <span className="text-xs text-gray-400">{o.bank}</span>}
-                          {o.payment_method === "wallet" && o.wallet && <span className="text-xs text-gray-400">{o.wallet}</span>}
-                          <span className={`text-xs font-semibold px-2 py-0.5 rounded-full w-fit ${ o.payment_status === "paid" ? "bg-green-100 text-green-600" : o.payment_status === "refunded" ? "bg-blue-100 text-blue-600" : "bg-yellow-100 text-yellow-600"}`}>{o.payment_status || "pending"}</span>
+                          {o.payment_method === "cod" ? (
+                            <span className="text-xs font-bold text-green-600 flex items-center gap-1">💵 Cash on Delivery</span>
+                          ) : (
+                            <>
+                              <span className="text-xs font-bold text-gray-700 capitalize">{o.payment_method}</span>
+                              {o.payment_method === "card" && o.card_network && <span className="text-xs text-gray-400">{o.card_network} •••• {o.card_last4}</span>}
+                              {o.payment_method === "upi" && o.vpa && <span className="text-xs text-gray-400">{o.vpa}</span>}
+                              {o.payment_method === "netbanking" && o.bank && <span className="text-xs text-gray-400">{o.bank}</span>}
+                              {o.payment_method === "wallet" && o.wallet && <span className="text-xs text-gray-400">{o.wallet}</span>}
+                            </>
+                          )}
+                          <span className={`text-xs font-semibold px-2 py-0.5 rounded-full w-fit ${ o.payment_status === "paid" || o.payment_status === "cod" ? "bg-green-100 text-green-600" : o.payment_status === "refunded" ? "bg-blue-100 text-blue-600" : "bg-yellow-100 text-yellow-600"}`}>
+                            {o.payment_status === "cod" ? "COD" : o.payment_status || "pending"}
+                          </span>
                         </div>
                       ) : <span className="text-xs text-gray-300">—</span>}
                     </td>
@@ -485,7 +493,21 @@ function Orders() {
 }
 
 // ── Offers Tab ───────────────────────────────────────────────
-const EMPTY_OFFER = { title: "", subtitle: "", badge: "", bg_from: "#f97316", bg_to: "#f59e0b", emoji: "🎁", expires_at: "", is_active: true };
+const EMPTY_OFFER = {
+  title: "",
+  subtitle: "",
+  badge: "",
+  bg_from: "#f97316",
+  bg_to: "#f59e0b",
+  emoji: "🎁",
+  expires_at: "",
+  is_active: true,
+  code: "",
+  discount_type: "percentage",
+  discount_value: 10,
+  min_order_amount: 0,
+  max_uses: "",
+};
 
 function Offers() {
   const qc = useQueryClient();
@@ -540,7 +562,7 @@ function Offers() {
       {/* Offer Form Modal */}
       {showForm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm px-4">
-          <div className="bg-white rounded-3xl shadow-2xl p-7 w-full max-w-lg">
+          <div className="bg-white rounded-3xl shadow-2xl p-7 w-full max-w-lg max-h-[90vh] overflow-y-auto">
             <h3 className="font-extrabold text-gray-800 text-lg mb-5">{editing ? "Edit Offer" : "Create Offer"}</h3>
             <div className="flex flex-col gap-3">
               {[{k:"title",label:"Title *",ph:"e.g. Mother's Day BOGO"},{k:"subtitle",label:"Subtitle",ph:"Buy 1 Get 1 Free on all khakhras"},{k:"badge",label:"Badge",ph:"e.g. Limited Time"}].map(({k,label,ph}) => (
@@ -572,6 +594,43 @@ function Offers() {
                 <input type="datetime-local" value={form.expires_at} onChange={e => setForm({...form,expires_at:e.target.value})}
                   className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-orange-400 bg-gray-50" />
               </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-semibold text-gray-600 mb-1">Coupon Code</label>
+                  <input value={form.code || ""} onChange={e => setForm({...form,code:e.target.value.toUpperCase()})} placeholder="CRISPY10"
+                    className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-orange-400 bg-gray-50 font-bold uppercase" />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-gray-600 mb-1">Discount Type</label>
+                  <select value={form.discount_type || "percentage"} onChange={e => setForm({...form,discount_type:e.target.value})}
+                    className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-orange-400 bg-gray-50">
+                    <option value="percentage">Percentage off</option>
+                    <option value="flat">Flat amount off</option>
+                    <option value="bogo">BOGO</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-gray-600 mb-1">Discount Value</label>
+                  <input type="number" min="0" value={form.discount_value ?? 0} onChange={e => setForm({...form,discount_value:e.target.value})}
+                    disabled={form.discount_type === "bogo"}
+                    className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-orange-400 bg-gray-50 disabled:opacity-60" />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-gray-600 mb-1">Minimum Order</label>
+                  <input type="number" min="0" value={form.min_order_amount ?? 0} onChange={e => setForm({...form,min_order_amount:e.target.value})}
+                    className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-orange-400 bg-gray-50" />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-gray-600 mb-1">Max Uses</label>
+                  <input type="number" min="1" value={form.max_uses || ""} onChange={e => setForm({...form,max_uses:e.target.value})} placeholder="Unlimited"
+                    className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-orange-400 bg-gray-50" />
+                </div>
+                <label className="flex items-center gap-2 rounded-xl border border-gray-200 bg-gray-50 px-3 py-2.5 text-sm font-semibold text-gray-600">
+                  <input type="checkbox" checked={!!form.is_active} onChange={e => setForm({...form,is_active:e.target.checked})}
+                    className="accent-orange-500" />
+                  Active
+                </label>
+              </div>
               {/* Preview */}
               <div className="rounded-2xl p-4 text-white flex items-center gap-3" style={{background:`linear-gradient(135deg,${form.bg_from},${form.bg_to})`}}>
                 <span className="text-3xl">{form.emoji}</span>
@@ -579,6 +638,7 @@ function Offers() {
                   {form.badge && <span className="text-xs bg-white/20 px-2 py-0.5 rounded-full font-semibold">{form.badge}</span>}
                   <p className="font-extrabold">{form.title || "Offer Title"}</p>
                   {form.subtitle && <p className="text-white/80 text-xs">{form.subtitle}</p>}
+                  {form.code && <p className="text-white text-xs font-bold mt-1">Use code {form.code}</p>}
                 </div>
               </div>
             </div>
@@ -611,6 +671,10 @@ function Offers() {
               {/* Info + actions */}
               <div className="flex-1 p-4 flex flex-col md:flex-row items-start md:items-center justify-between gap-3">
                 <div className="flex flex-wrap gap-2 text-xs">
+                  {offer.code && <span className="bg-amber-100 text-amber-600 px-2.5 py-1 rounded-full font-bold">{offer.code}</span>}
+                  <span className="bg-blue-50 text-blue-600 px-2.5 py-1 rounded-full font-semibold">
+                    {offer.discount_type === "percentage" ? `${offer.discount_value}% off` : offer.discount_type === "flat" ? `₹${offer.discount_value} off` : "BOGO"}
+                  </span>
                   {offer.badge && <span className="bg-orange-100 text-orange-500 px-2.5 py-1 rounded-full font-semibold">{offer.badge}</span>}
                   <span className={`px-2.5 py-1 rounded-full font-semibold ${offer.is_active ? "bg-green-100 text-green-600" : "bg-gray-100 text-gray-500"}`}>
                     {offer.is_active ? "Active" : "Inactive"}
@@ -634,6 +698,149 @@ function Offers() {
               </div>
             </div>
           ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Reviews Tab ──────────────────────────────────────────────
+function StarDisplay({ rating }) {
+  return (
+    <div className="flex gap-0.5">
+      {[1,2,3,4,5].map(s => (
+        <span key={s} className={`text-xs ${s <= rating ? "text-amber-400" : "text-gray-200"}`}>★</span>
+      ))}
+    </div>
+  );
+}
+
+function Reviews() {
+  const qc = useQueryClient();
+  const [showForm, setShowForm] = useState(false);
+  const [form, setForm] = useState({ productId: "", reviewerName: "", rating: 5, comment: "" });
+
+  const { data: reviews = [], isLoading } = useQuery({
+    queryKey: ["admin-reviews"],
+    queryFn: () => getAdminReviews().then(r => r.data),
+  });
+
+  const { data: products = [] } = useQuery({
+    queryKey: ["products"],
+    queryFn: () => getAllProducts().then(r => r.data.products),
+  });
+
+  const invalidate = () => qc.invalidateQueries({ queryKey: ["admin-reviews"] });
+
+  const deleteMutation = useMutation({
+    mutationFn: deleteReview,
+    onSuccess: () => { invalidate(); toast.success("Review deleted"); },
+    onError: () => toast.error("Failed to delete"),
+  });
+
+  const manualMutation = useMutation({
+    mutationFn: addManualReview,
+    onSuccess: () => { invalidate(); toast.success("Review published!"); setShowForm(false); setForm({ productId: "", reviewerName: "", rating: 5, comment: "" }); },
+    onError: (err) => toast.error(err.response?.data?.message || "Failed to add review"),
+  });
+
+  if (isLoading) return <Spinner />;
+
+  return (
+    <div className="flex flex-col gap-5">
+
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <h3 className="font-extrabold text-gray-700 text-sm">All Reviews</h3>
+          <span className="bg-orange-100 text-orange-500 text-xs font-bold px-2 py-0.5 rounded-full">{reviews.length}</span>
+        </div>
+        <button onClick={() => setShowForm(true)}
+          className="bg-gradient-to-r from-orange-500 to-amber-500 text-white px-5 py-2.5 rounded-xl text-sm font-bold hover:from-orange-600 hover:to-amber-600 transition shadow-sm">
+          + Add Review
+        </button>
+      </div>
+
+      {/* Manual Review Modal */}
+      {showForm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm px-4">
+          <div className="bg-white rounded-3xl shadow-2xl p-7 w-full max-w-md">
+            <h3 className="font-extrabold text-gray-800 text-lg mb-5">Add Review</h3>
+            <div className="flex flex-col gap-3">
+              <div>
+                <label className="block text-xs font-semibold text-gray-600 mb-1">Product *</label>
+                <select value={form.productId} onChange={e => setForm({ ...form, productId: e.target.value })}
+                  className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-orange-400 bg-gray-50">
+                  <option value="">Select product...</option>
+                  {products.map(p => <option key={p.id} value={p.id}>{p.title}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-gray-600 mb-1">Reviewer Name *</label>
+                <input value={form.reviewerName} onChange={e => setForm({ ...form, reviewerName: e.target.value })}
+                  placeholder="e.g. Priya Shah"
+                  className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-orange-400 bg-gray-50" />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-gray-600 mb-1">Rating *</label>
+                <div className="flex gap-2">
+                  {[1,2,3,4,5].map(s => (
+                    <button key={s} type="button" onClick={() => setForm({ ...form, rating: s })}
+                      className={`text-2xl transition ${s <= form.rating ? "text-amber-400" : "text-gray-200"}`}>★</button>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-gray-600 mb-1">Comment</label>
+                <textarea rows={3} value={form.comment} onChange={e => setForm({ ...form, comment: e.target.value })}
+                  placeholder="Write the review..."
+                  className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-orange-400 bg-gray-50 resize-none" />
+              </div>
+            </div>
+            <div className="flex gap-3 mt-5">
+              <button onClick={() => setShowForm(false)}
+                className="flex-1 border border-gray-200 py-2.5 rounded-xl text-sm font-semibold text-gray-600 hover:bg-gray-50">Cancel</button>
+              <button
+                onClick={() => manualMutation.mutate({ productId: Number(form.productId), reviewerName: form.reviewerName, rating: form.rating, comment: form.comment })}
+                disabled={!form.productId || !form.reviewerName || manualMutation.isPending}
+                className="flex-1 bg-gradient-to-r from-orange-500 to-amber-500 text-white py-2.5 rounded-xl text-sm font-bold disabled:opacity-60">
+                {manualMutation.isPending ? "Publishing..." : "Publish"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Reviews List */}
+      {reviews.length === 0 ? (
+        <div className="text-center py-16 text-gray-400">No reviews yet.</div>
+      ) : (
+        <div className="bg-white rounded-2xl border border-orange-100 shadow-sm overflow-hidden">
+          <div className="divide-y divide-gray-50">
+            {reviews.map(r => (
+              <div key={r.id} className="p-4 flex items-start justify-between gap-3">
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap mb-1">
+                    <div className="w-7 h-7 rounded-full bg-orange-100 flex items-center justify-center text-orange-500 text-xs font-bold shrink-0">
+                      {(r.reviewer_name || r.user_name)?.[0]?.toUpperCase()}
+                    </div>
+                    <span className="font-semibold text-gray-800 text-sm">{r.reviewer_name || r.user_name}</span>
+                    <StarDisplay rating={r.rating} />
+                    <span className="text-xs bg-orange-100 text-orange-500 px-2 py-0.5 rounded-full">{r.product_title}</span>
+                    {r.is_manual && <span className="text-xs bg-purple-100 text-purple-500 px-2 py-0.5 rounded-full">Manual</span>}
+                  </div>
+                  {r.comment && <p className="text-sm text-gray-500 ml-9 leading-relaxed">{r.comment}</p>}
+                  <p className="text-xs text-gray-300 ml-9 mt-1">
+                    {new Date(r.created_at).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}
+                  </p>
+                </div>
+                <button onClick={() => deleteMutation.mutate(r.id)}
+                  className="text-red-400 hover:text-red-600 p-1.5 rounded-lg hover:bg-red-50 shrink-0 transition">
+                  <FaTrash size={13} />
+                </button>
+              </div>
+            ))}
+          </div>
         </div>
       )}
     </div>
@@ -684,6 +891,7 @@ export default function AdminDashboard() {
         {tab === "Overview" && <Overview />}
         {tab === "Orders" && <Orders />}
         {tab === "Offers" && <Offers />}
+        {tab === "Reviews" && <Reviews />}
         {tab === "Users" && <Users />}
         {tab === "Products" && <Products />}
       </div>

@@ -1,13 +1,20 @@
-import { getActiveOffersService, getAllOffersAdminService, createOfferService, updateOfferService, deleteOfferService } from "../services/offers.Services.js";
+import { getActiveOffersService, getAllOffersAdminService, createOfferService, updateOfferService, deleteOfferService, validateCouponService } from "../services/offers.Services.js";
 
 export const getActiveOffers = async (req, res) => {
   try { res.json(await getActiveOffersService()); }
   catch (e) { res.status(500).json({ message: e.message }); }
-};
+};  
 
 export const getAllOffersAdmin = async (req, res) => {
   try { res.json(await getAllOffersAdminService()); }
   catch (e) { res.status(500).json({ message: e.message }); }
+};
+
+export const validateCoupon = async (req, res) => {
+  const { code, subtotal } = req.body;
+  if (!code || !subtotal) return res.status(400).json({ message: "code and subtotal are required" });
+  try { res.json(await validateCouponService(code, subtotal)); }
+  catch (e) { res.status(400).json({ message: e.message }); }
 };
 
 export const createOffer = async (req, res) => {

@@ -12,6 +12,7 @@ export const CartProvider = ({ children }) => {
   const { data: cartItems = [] } = useQuery({
     queryKey: ["cart"],
     queryFn: () => getCart().then((r) => r.data),
+    retry: false,
     enabled: !!user,
   });
 

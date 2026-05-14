@@ -5,6 +5,7 @@ import express from 'express';
 import http from 'http';
 import { Server } from 'socket.io';
 import cors from 'cors';
+import rateLimit from 'express-rate-limit';
 import logger from './src/utils/logger.js';
 import httpLogger from './src/middleware/httpLogger.js';
 import chatSocket from "./src/sockets/chatSocket.js";
@@ -16,25 +17,47 @@ import orderRoutes from "./src/routes/orderRoutes.js";
 import offerRoutes from "./src/routes/offerRoutes.js";
 import wishlistRoutes from "./src/routes/wishlistRoutes.js";
 import paymentRoutes from "./src/routes/paymentRoutes.js";
+import reviewRoutes from "./src/routes/reviewRoutes.js";
 
 const PORT = process.env.PORT || 8000;
 
 const app = express();
 
 // ── Middleware ────────────────────────────────────────────────
-app.use(cors());
+app.use(cors({
+  origin: process.env.FRONTEND_URL || "http://localhost:4000",
+  credentials: true,
+}));
 app.use(express.json());
-app.use(httpLogger); // Log every HTTP request
+app.use(httpLogger);
+
+// ── Rate Limiters ───────────────────────────────────────────────────
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 20,                   // max 20 requests per window
+  message: { message: "Too many attempts, please try again after 15 minutes" },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+const generalLimiter = rateLimit({
+  windowMs: 60 * 1000, // 1 minute
+  max: 100,            // max 100 requests per minute
+  message: { message: "Too many requests, please slow down" },
+  standardHeaders: true,
+  legacyHeaders: false,
+}); // Log every HTTP request
 
 // ── Routes ────────────────────────────────────────────────────
-app.use("/api/auth", authRoutes);
-app.use("/api/products", productRoutes);
-app.use("/api/admin", adminRoutes);
-app.use("/api/cart", cartRoutes);
-app.use("/api/orders", orderRoutes);
-app.use("/api/offers", offerRoutes);
-app.use("/api/wishlist", wishlistRoutes);
-app.use("/api/payments", paymentRoutes);
+app.use("/api/auth", authLimiter, authRoutes);
+app.use("/api/products", generalLimiter, productRoutes);
+app.use("/api/admin", generalLimiter, adminRoutes);
+app.use("/api/cart", generalLimiter, cartRoutes);
+app.use("/api/orders", generalLimiter, orderRoutes);
+app.use("/api/offers", generalLimiter, offerRoutes);
+app.use("/api/wishlist", generalLimiter, wishlistRoutes);
+app.use("/api/payments", generalLimiter, paymentRoutes);
+app.use("/api/reviews", generalLimiter, reviewRoutes);
 
 
 // ── 404 handler ───────────────────────────────────────────────
@@ -58,7 +81,7 @@ app.use((err, req, res, next) => {
 
 // ── Socket.io ─────────────────────────────────────────────────
 const server = http.createServer(app);
-const io = new Server(server, { cors: { origin: "*" } });
+const io = new Server(server, { cors: { origin: process.env.FRONTEND_URL || "http://localhost:4000" } });
 chatSocket(io);
 
 // ── Start ─────────────────────────────────────────────────────

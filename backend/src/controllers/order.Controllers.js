@@ -1,5 +1,14 @@
-import { placeOrderService, getUserOrdersService, getAdminOrdersService, updateOrderStatusService, respondDeliveryDateService, repeatOrderService } from "../services/order.Services.js";
+import { placeOrderService, getUserOrdersService, getAdminOrdersService, updateOrderStatusService, respondDeliveryDateService, repeatOrderService, cancelOrderService } from "../services/order.Services.js";
 import logger from "../utils/logger.js";
+
+export const cancelOrder = async (req, res) => {
+  try {
+    const data = await cancelOrderService(req.params.id, req.user.id);
+    res.json(data);
+  } catch (e) {
+    res.status(400).json({ message: e.message });
+  }
+};
 
 export const repeatOrder = async (req, res) => {
   try {
@@ -11,10 +20,10 @@ export const repeatOrder = async (req, res) => {
 };
 
 export const placeOrder = async (req, res) => {
-  const { address, requestedDeliveryDate, paymentDetails } = req.body;
+  const { address, requestedDeliveryDate, paymentDetails, couponCode } = req.body;
   if (!address) return res.status(400).json({ message: "Delivery address is required" });
   try {
-    const data = await placeOrderService(req.user.id, address, requestedDeliveryDate, paymentDetails);
+    const data = await placeOrderService(req.user.id, address, requestedDeliveryDate, paymentDetails, couponCode);
     logger.info({ message: "Order placed", userId: req.user.id, orderId: data.orderId });
     res.status(201).json(data);
   } catch (e) {
