@@ -77,6 +77,9 @@ JWT_REFRESH_SECRET=your_refresh_secret
 EMAIL_USER=your_gmail@gmail.com
 EMAIL_PASS=your_gmail_app_password
 
+RAZORPAY_KEY_ID=rzp_test_xxxx
+RAZORPAY_KEY_SECRET=your_razorpay_secret
+
 FRONTEND_URL=http://localhost:5173
 ```
 

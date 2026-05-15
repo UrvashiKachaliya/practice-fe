@@ -66,8 +66,8 @@ export default function SearchBar({ onSearch, className = "" }) {
   };
 
   return (
-    <div ref={wrapperRef} className={`relative ${className}`}>
-      <form onSubmit={handleSubmit} className="flex items-center bg-gray-50 border border-gray-200 rounded-full px-4 py-2 gap-2 focus-within:border-orange-400 focus-within:bg-white transition">
+    <div ref={wrapperRef} className={`relative  ${className}`}>
+      <form onSubmit={handleSubmit} className="flex items-center bg-gray-50 border border-gray-200 rounded-full px-4 py-2 gap-2 focus-within:border-orange-400 focus-within:bg-white transition w-full">
         <IoSearchOutline size={17} className="text-gray-400 shrink-0" />
         <input
           type="text"

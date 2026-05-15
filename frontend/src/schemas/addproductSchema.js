@@ -7,4 +7,5 @@ export const productSchema = z.object({
   category: z.string().min(1, "Category is required"),
   stock: z.coerce.number().int().nonnegative("Stock must be 0 or more"),
   image: z.string().url("Enter a valid image URL").optional().or(z.literal("")),
+  status: z.enum(["active", "inactive"]).optional().default("active"),
 });

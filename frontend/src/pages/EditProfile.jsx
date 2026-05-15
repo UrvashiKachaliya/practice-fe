@@ -9,6 +9,7 @@ import { FiUser, FiPhone, FiMapPin, FiArrowLeft, FiMail } from "react-icons/fi";
 import { updateProfile } from "../helpers/apiRequest";
 import { editProfileSchema } from "../schemas/editprofileSchema";
 
+
 function EditProfile() {
   const { user, updateUser } = useAuth();
   const navigate = useNavigate();

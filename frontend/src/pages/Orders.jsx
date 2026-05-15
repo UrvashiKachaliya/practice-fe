@@ -2,12 +2,79 @@ import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { FaBoxOpen, FaWhatsapp, FaRedo } from "react-icons/fa";
-import { getUserOrders, repeatOrder } from "../helpers/apiRequest";
+import { FaBoxOpen, FaWhatsapp, FaRedo, FaStar, FaEdit, FaTimes } from "react-icons/fa";
+import { getUserOrders, repeatOrder, addReview, getProductReviews, cancelOrder } from "../helpers/apiRequest";
 import { totalWeight } from "../utils/weightUtils";
+import { useAuth } from "../context/AuthContext";
 
 // ── Config — set VITE_WHATSAPP_NUMBER in your .env ─────────
 const WHATSAPP_NUMBER = import.meta.env.VITE_WHATSAPP_NUMBER || "919876543210";
+
+// ── Star Rating ───────────────────────────────────────────────
+function StarRating({ value, onChange }) {
+  return (
+    <div className="flex gap-1">
+      {[1, 2, 3, 4, 5].map((star) => (
+        <button key={star} type="button" onClick={() => onChange(star)}>
+          <FaStar size={24} className={star <= value ? "text-amber-400" : "text-gray-200"} />
+        </button>
+      ))}
+    </div>
+  );
+}
+
+// ── Review Modal ──────────────────────────────────────────────
+function ReviewModal({ order, item, existing, onClose }) {
+  const isEdit = !!existing;
+  const [rating, setRating] = useState(existing?.rating || 0);
+  const [comment, setComment] = useState(existing?.comment || "");
+  const qc = useQueryClient();
+
+  const { mutate, isPending } = useMutation({
+    mutationFn: () => addReview({ productId: item.product_id, orderId: order.id, rating, comment }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["reviews", String(item.product_id)] });
+      toast.success(isEdit ? "Review updated! 🌾" : "Review submitted! 🌾");
+      onClose();
+    },
+    onError: (err) => toast.error(err.response?.data?.message || "Failed to submit review"),
+  });
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm px-4">
+      <div className="bg-white rounded-3xl shadow-2xl border border-orange-100 w-full max-w-sm p-7">
+        <div className="text-4xl mb-2 text-center">{isEdit ? "✏️" : "⭐"}</div>
+        <h3 className="text-lg font-extrabold text-gray-800 text-center mb-0.5">
+          {isEdit ? "Edit Your Review" : "Rate your order"}
+        </h3>
+        <p className="text-xs text-gray-400 text-center mb-5 truncate">{item.title}</p>
+
+        <div className="flex justify-center mb-5">
+          <StarRating value={rating} onChange={setRating} />
+        </div>
+
+        <textarea
+          rows={3}
+          value={comment}
+          onChange={(e) => setComment(e.target.value)}
+          placeholder="Share your experience (optional)..."
+          className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-orange-400 bg-gray-50 resize-none mb-4"
+        />
+
+        <div className="flex gap-3">
+          <button onClick={onClose}
+            className="flex-1 border border-gray-200 py-2.5 rounded-xl text-sm font-semibold text-gray-600 hover:bg-gray-50 transition">
+            Cancel
+          </button>
+          <button onClick={() => mutate()} disabled={!rating || isPending}
+            className="flex-1 bg-gradient-to-r from-orange-500 to-amber-500 text-white py-2.5 rounded-xl text-sm font-bold disabled:opacity-60 transition">
+            {isPending ? (isEdit ? "Updating..." : "Submitting...") : (isEdit ? "Update" : "Submit")}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 const statusStyle = {
   pending:   "bg-yellow-100 text-yellow-600",
@@ -23,12 +90,54 @@ const statusIcon = {
 
 function Orders() {
   const [expanded, setExpanded] = useState(null);
+  const [reviewModal, setReviewModal] = useState(null);
+  const [cancelConfirm, setCancelConfirm] = useState(null);
   const navigate = useNavigate();
+  const { user } = useAuth();
   const qc = useQueryClient();
 
   const { data: orders = [], isLoading } = useQuery({
     queryKey: ["orders"],
     queryFn: () => getUserOrders().then((r) => r.data),
+  });
+
+
+
+  // Collect all product IDs from delivered orders to fetch their reviews
+  const deliveredProductIds = [...new Set(
+    orders
+      .filter(o => o.status === "delivered")
+      .flatMap(o => (typeof o.items === "string" ? JSON.parse(o.items) : o.items).map(i => i.product_id))
+  )];
+
+  // Fetch reviews for each delivered product to check if user already reviewed
+  const reviewQueries = useQuery({
+    queryKey: ["my-reviews", deliveredProductIds.join(",")],
+    queryFn: async () => {
+      if (!deliveredProductIds.length) return {};
+      const results = await Promise.all(
+        deliveredProductIds.map(pid => getProductReviews(pid).then(r => ({ pid, reviews: r.data })))
+      );
+      const map = {};
+      results.forEach(({ pid, reviews }) => {
+        const mine = reviews.find(r => r.user_name === user?.name);
+        if (mine) map[pid] = mine;
+      });
+      return map;
+    },
+    enabled: !!user && deliveredProductIds.length > 0,
+  });
+
+  const myReviews = reviewQueries.data || {};
+
+  const cancelMutation = useMutation({
+    mutationFn: (orderId) => cancelOrder(orderId),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["orders"] });
+      toast.success("Order cancelled successfully");
+      setCancelConfirm(null);
+    },
+    onError: (err) => toast.error(err.response?.data?.message || "Failed to cancel order"),
   });
 
   const repeatMutation = useMutation({
@@ -60,6 +169,26 @@ function Orders() {
   return (
     <div className="min-h-screen bg-amber-50 py-8 px-4">
       <div className="max-w-3xl mx-auto">
+        {reviewModal && <ReviewModal order={reviewModal.order} item={reviewModal.item} existing={reviewModal.existing} onClose={() => setReviewModal(null)} />}
+
+        {/* Cancel Confirm Modal */}
+        {cancelConfirm && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm px-4">
+            <div className="bg-white rounded-3xl shadow-2xl border border-orange-100 w-full max-w-xs p-7 text-center">
+              <div className="text-4xl mb-3">❌</div>
+              <h3 className="text-lg font-extrabold text-gray-800 mb-1">Cancel Order?</h3>
+              <p className="text-gray-400 text-sm mb-6">Order #{cancelConfirm} will be cancelled and stock will be restored.</p>
+              <div className="flex gap-3">
+                <button onClick={() => setCancelConfirm(null)}
+                  className="flex-1 border border-gray-200 py-2.5 rounded-xl text-sm font-semibold text-gray-600 hover:bg-gray-50 transition">Keep it</button>
+                <button onClick={() => cancelMutation.mutate(cancelConfirm)} disabled={cancelMutation.isPending}
+                  className="flex-1 bg-red-500 text-white py-2.5 rounded-xl text-sm font-bold hover:bg-red-600 disabled:opacity-60 transition">
+                  {cancelMutation.isPending ? "Cancelling..." : "Yes, Cancel"}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
@@ -145,7 +274,26 @@ function Orders() {
                                 {item.weight} × {item.quantity} = <span className="font-semibold text-orange-500">{totalWeight(item.weight, item.quantity)}</span>
                               </p>
                             </div>
-                            <p className="font-bold text-gray-700 text-sm shrink-0">₹{(item.price * item.quantity).toFixed(2)}</p>
+                            <div className="flex items-center gap-2 shrink-0">
+                              <p className="font-bold text-gray-700 text-sm">₹{(item.price * item.quantity).toFixed(2)}</p>
+                              {order.status === "delivered" && (
+                                myReviews[item.product_id] ? (
+                                  <button
+                                    onClick={() => setReviewModal({ order, item, existing: myReviews[item.product_id] })}
+                                    className="flex items-center gap-1 text-xs font-bold text-green-600 border border-green-300 px-2 py-1 rounded-lg hover:bg-green-50 transition"
+                                  >
+                                    <FaEdit size={10} /> Reviewed
+                                  </button>
+                                ) : (
+                                  <button
+                                    onClick={() => setReviewModal({ order, item, existing: null })}
+                                    className="flex items-center gap-1 text-xs font-bold text-amber-500 border border-amber-300 px-2 py-1 rounded-lg hover:bg-amber-50 transition"
+                                  >
+                                    <FaStar size={10} /> Rate
+                                  </button>
+                                )
+                              )}
+                            </div>
                           </div>
                         ))}
                       </div>
@@ -167,7 +315,6 @@ function Orders() {
 
                       {/* Action Buttons */}
                       <div className="flex gap-2">
-                        {/* Repeat Order */}
                         <button
                           onClick={() => repeatMutation.mutate(order.id)}
                           disabled={repeatMutation.isPending}
@@ -177,7 +324,15 @@ function Orders() {
                           {repeatMutation.isPending ? "Adding..." : "Repeat Order"}
                         </button>
 
-                        {/* WhatsApp Help for this order */}
+                        {order.status === "pending" && (
+                          <button
+                            onClick={() => setCancelConfirm(order.id)}
+                            className="flex items-center justify-center gap-1.5 bg-red-50 hover:bg-red-100 text-red-500 px-4 py-2.5 rounded-xl text-xs font-bold transition border border-red-200"
+                          >
+                            <FaTimes size={12} /> Cancel
+                          </button>
+                        )}
+
                         <button
                           onClick={() => openWhatsApp(order)}
                           className="flex items-center justify-center gap-2 bg-green-500 hover:bg-green-600 text-white px-4 py-2.5 rounded-xl text-xs font-bold transition shadow-sm shadow-green-200"

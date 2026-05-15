@@ -1,15 +1,71 @@
 import React, { useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { getSingleProduct, addToCart, toggleWishlist, checkWishlist } from "../helpers/apiRequest";
+import { getSingleProduct, addToCart, toggleWishlist, checkWishlist, getProductReviews, likeReview } from "../helpers/apiRequest";
 import { toast } from "sonner";
-import { FaArrowLeft, FaShoppingCart, FaHeart } from "react-icons/fa";
+import { FaArrowLeft, FaShoppingCart, FaHeart, FaStar, FaThumbsUp } from "react-icons/fa";
 import { useAuth } from "../context/AuthContext";
 import { useAuthPrompt } from "../context/AuthPromptContext";
 import { totalWeight } from "../utils/weightUtils";
 import NotFound from "./NotFound";
 
 const WEIGHTS = ["500g", "1kg", "2kg", "5kg"];
+
+function ReviewCard({ review: r, user, openAuthPrompt, productId, qc }) {
+  const { mutate: likeMutate, isPending: isLiking } = useMutation({
+    mutationFn: () => likeReview(r.id),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["reviews", productId] }),
+    onError: () => toast.error("Failed to like"),
+  });
+
+  return (
+    <div className="py-4 first:pt-0 last:pb-0">
+      <div className="flex items-start gap-3">
+        {/* Avatar */}
+        <div className="w-9 h-9 rounded-full bg-orange-100 flex items-center justify-center text-orange-500 text-sm font-bold shrink-0">
+          {r.user_name?.[0]?.toUpperCase()}
+        </div>
+
+        <div className="flex-1 min-w-0">
+          {/* Name + stars + date */}
+          <div className="flex items-center justify-between gap-2 flex-wrap">
+            <div className="flex items-center gap-2">
+              <span className="font-semibold text-gray-800 text-sm">{r.user_name}</span>
+              <div className="flex items-center gap-0.5">
+                {[1,2,3,4,5].map(s => (
+                  <FaStar key={s} size={11} className={s <= r.rating ? "text-amber-400" : "text-gray-200"} />
+                ))}
+              </div>
+            </div>
+            <span className="text-xs text-gray-300">
+              {new Date(r.created_at).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}
+            </span>
+          </div>
+
+          {/* Comment */}
+          {r.comment && (
+            <p className="text-sm text-gray-500 leading-relaxed mt-1.5">{r.comment}</p>
+          )}
+
+          {/* Like button */}
+          <button
+            onClick={() => user ? likeMutate() : openAuthPrompt()}
+            disabled={isLiking}
+            className={`flex items-center gap-1.5 mt-2.5 text-xs font-semibold px-3 py-1.5 rounded-full border transition ${
+              r.liked
+                ? "bg-orange-50 border-orange-300 text-orange-500"
+                : "border-gray-200 text-gray-400 hover:border-orange-300 hover:text-orange-500 hover:bg-orange-50"
+            }`}
+          >
+            <FaThumbsUp size={11} />
+            <span>Helpful</span>
+            {r.likes > 0 && <span className="text-gray-400 font-normal">({r.likes})</span>}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 function SingleProduct() {
   const { id } = useParams();
@@ -35,6 +91,16 @@ function SingleProduct() {
     queryFn: () => checkWishlist(id).then((r) => r.data),
     enabled: !!user && isValidId,
   });
+
+  const { data: reviews = [] } = useQuery({
+    queryKey: ["reviews", id],
+    queryFn: () => getProductReviews(id).then((r) => r.data),
+    enabled: isValidId,
+  });
+
+  const avgRating = reviews.length
+    ? (reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length).toFixed(1)
+    : null;
 
   const { mutate: addToCartMutate, isPending: isAdding } = useMutation({
     mutationFn: () => addToCart({ productId: Number(id), quantity: packs, weight: selectedWeight }),
@@ -147,6 +213,39 @@ function SingleProduct() {
               </button>
             </div>
           </div>
+        </div>
+
+        {/* Reviews Section */}
+        <div className="bg-white rounded-2xl shadow-sm border border-orange-100 mt-5 p-6">
+          <div className="flex items-center gap-3 mb-5">
+            <div>
+              <h3 className="font-extrabold text-gray-800">Customer Reviews</h3>
+              {avgRating ? (
+                <div className="flex items-center gap-1.5 mt-1">
+                  {[1,2,3,4,5].map(s => (
+                    <FaStar key={s} size={14} className={s <= Math.round(avgRating) ? "text-amber-400" : "text-gray-200"} />
+                  ))}
+                  <span className="text-sm font-bold text-gray-700">{avgRating}</span>
+                  <span className="text-xs text-gray-400">({reviews.length} review{reviews.length !== 1 ? "s" : ""})</span>
+                </div>
+              ) : (
+                <p className="text-xs text-gray-400 mt-0.5">No reviews yet</p>
+              )}
+            </div>
+          </div>
+
+          {reviews.length === 0 ? (
+            <div className="text-center py-8">
+              <div className="text-4xl mb-2">⭐</div>
+              <p className="text-gray-400 text-sm">Be the first to review this product!</p>
+            </div>
+          ) : (
+            <div className="flex flex-col divide-y divide-gray-50">
+              {reviews.map((r) => (
+                <ReviewCard key={r.id} review={r} user={user} openAuthPrompt={openAuthPrompt} productId={id} qc={qc} />
+              ))}
+            </div>
+          )}
         </div>
       </div>
     </div>

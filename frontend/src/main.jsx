@@ -29,6 +29,7 @@ import { CartProvider } from "./context/CartContext";
 import AuthPromptModal from "./components/AuthPromptModal";
 import { Toaster } from "sonner";
 import "./index.css";
+import AllProducts from "./pages/AllProduct";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -56,7 +57,7 @@ ReactDOM.createRoot(document.getElementById("root")).render(
               <Route element={<Layout />}>
                 {/*Public routes*/}
                 <Route path="/" element={<Products />} />
-                <Route path="/products" element={<Products />} />
+                <Route path="/products" element={<AllProducts />} />
                 <Route path="/about" element={<About />} />
                 <Route path="/contact" element={<Contact />} />
                 <Route

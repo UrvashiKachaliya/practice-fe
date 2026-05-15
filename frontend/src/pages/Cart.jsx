@@ -29,6 +29,7 @@ function Cart() {
   const subtotal = items.reduce((sum, item) => sum + item.price * item.quantity, 0);
   const deliveryFee = subtotal >= 499 ? 0 : 49;
   const total = subtotal + deliveryFee;
+  const hasStockIssue = items.some(item => item.stock === 0 || item.quantity > item.stock);
 
   if (isLoading)
     return (
@@ -108,6 +109,14 @@ function Cart() {
                             = {totalWeight(item.weight, item.quantity)}
                           </span>
                         </div>
+                      )}
+  
+                      {/* Stock warning */}
+                      {item.stock === 0 && (
+                        <p className="text-xs text-red-500 font-semibold mt-1">⚠️ Out of stock — please remove</p>
+                      )}
+                      {item.stock > 0 && item.quantity > item.stock && (
+                        <p className="text-xs text-red-500 font-semibold mt-1">⚠️ Only {item.stock} left — reduce quantity</p>
                       )}
 
                       <p className="text-orange-500 font-bold text-sm mt-1.5">₹{item.price}</p>

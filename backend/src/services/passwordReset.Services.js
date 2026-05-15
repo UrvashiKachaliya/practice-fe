@@ -4,7 +4,6 @@ dotenv.config();
 import db from "../config/db.js";
 import { hashPassword } from "../utils/hashpassword.js";
 import { sendResetLink } from "./emailService.js";
-
 export const forgotPasswordService = async (email) => {
   const [rows] = await db.promise().query(
     "SELECT id FROM users WHERE email = ?", [email]
