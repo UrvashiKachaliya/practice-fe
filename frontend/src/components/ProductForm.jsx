@@ -2,16 +2,19 @@ import React from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { productSchema } from "../schemas/addproductSchema";
+import ImageUpload from "./ImageUpload";
 
 const inputClass = "w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400 bg-gray-50";
 const labelClass = "block text-sm font-semibold text-gray-700 mb-1";
 const errorClass = "text-red-500 text-xs mt-1";
 
 export default function ProductForm({ defaultValues = {}, onSubmit, isPending, isEdit = false }) {
-  const { register, handleSubmit, formState: { errors } } = useForm({
+  const { register, handleSubmit, formState: { errors }, setValue, watch } = useForm({
     resolver: zodResolver(productSchema),
     defaultValues,
   });
+
+  const imageValue = watch('image');
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-4">
@@ -44,11 +47,14 @@ export default function ProductForm({ defaultValues = {}, onSubmit, isPending, i
         </div>
       </div>
 
-      {/* Image URL */}
+      {/* Product Image */}
       <div>
-        <label className={labelClass}>Image URL</label>
-        <input {...register("image")} placeholder="https://example.com/image.jpg" className={inputClass} />
-        {errors.image && <p className={errorClass}>{errors.image.message}</p>}
+        <label className={labelClass}>Product Image</label>
+        <ImageUpload
+          value={imageValue}
+          onChange={(url) => setValue('image', url)}
+          error={errors.image?.message}
+        />
       </div>
 
       {/* Description */}

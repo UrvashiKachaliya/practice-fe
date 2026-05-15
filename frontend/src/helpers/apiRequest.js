@@ -60,3 +60,9 @@ export const likeReview = (id) => axiosInstance.post(`/api/reviews/${id}/like`);
 export const getAdminReviews = () => axiosInstance.get("/api/reviews/admin/all");
 export const deleteReview = (id) => axiosInstance.delete(`/api/reviews/admin/${id}`);
 export const addManualReview = (data) => axiosInstance.post("/api/reviews/admin/manual", data);
+export const uploadProductImage = (formData) =>
+  axiosInstance.post("/api/admin/product-image", formData, {
+    headers: {
+      "Content-Type": "multipart/form-data",
+    },
+  });

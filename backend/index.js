@@ -18,6 +18,11 @@ import offerRoutes from "./src/routes/offerRoutes.js";
 import wishlistRoutes from "./src/routes/wishlistRoutes.js";
 import paymentRoutes from "./src/routes/paymentRoutes.js";
 import reviewRoutes from "./src/routes/reviewRoutes.js";
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const PORT = process.env.PORT || 8000;
 
@@ -30,6 +35,9 @@ app.use(cors({
 }));
 app.use(express.json());
 app.use(httpLogger);
+
+// Serve static files from uploads directory
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // ── Rate Limiters ───────────────────────────────────────────────────
 const authLimiter = rateLimit({
