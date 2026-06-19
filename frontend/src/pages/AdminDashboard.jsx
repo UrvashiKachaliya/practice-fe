@@ -9,6 +9,8 @@ import {
   getAdminOrders, updateOrderStatus, respondDeliveryDate,
   getAdminOffers, createOffer, updateOffer, deleteOffer,
   getAdminReviews,  deleteReview, addManualReview, getAllProducts,
+  getAllOrders
+  
 } from "../helpers/apiRequest";
 import { Link } from "react-router-dom";
 import { FaPen } from "react-icons/fa";
@@ -66,6 +68,279 @@ function Overview() {
     </div>
   );
 }
+
+const handleDownloadPdf = async () => {
+  try {
+    const { data } = await getAllOrders();
+
+    if (!Array.isArray(data)) {
+      throw new Error("Invalid orders response");
+    }
+
+    const blob = createOrdersPdf(data);
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    const today = new Date().toISOString().slice(0, 10);
+
+    link.href = url;
+    link.download = `orders-report-${today}.pdf`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+
+    toast.success("Orders PDF downloaded");
+  } catch {
+    toast.error("Failed to fetch all orders");
+  }
+};
+
+const cleanPdfText = (value) =>
+  String(value ?? "")
+    .replace(/[^\x20-\x7E]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+
+const escapePdfText = (value) =>
+  cleanPdfText(value).replace(/\\/g, "\\\\").replace(/\(/g, "\\(").replace(/\)/g, "\\)");
+
+const truncatePdfText = (value, maxLength) => {
+  const text = cleanPdfText(value);
+  return text.length > maxLength ? `${text.slice(0, Math.max(0, maxLength - 3))}...` : text;
+};
+
+const wrapPdfLine = (text, maxLength = 92) => {
+  const words = cleanPdfText(text).split(" ").filter(Boolean);
+  const lines = [];
+  let line = "";
+
+  words.forEach((word) => {
+    if (word.length > maxLength) {
+      if (line) lines.push(line);
+      lines.push(word.slice(0, maxLength));
+      line = word.slice(maxLength);
+      return;
+    }
+
+    const next = line ? `${line} ${word}` : word;
+    if (next.length > maxLength) {
+      lines.push(line);
+      line = word;
+    } else {
+      line = next;
+    }
+  });
+
+  if (line) lines.push(line);
+  return lines.length ? lines : [""];
+};
+
+const parseOrderItems = (items) => {
+  if (typeof items === "string") {
+    try {
+      return JSON.parse(items) || [];
+    } catch {
+      return [];
+    }
+  }
+
+  return Array.isArray(items) ? items : [];
+};
+
+const normalizePdfColor = (color) =>
+  color
+    .split(" ")
+    .map((value) => {
+      const number = Number(value);
+      return number > 1 ? (number / 255).toFixed(3) : String(number);
+    })
+    .join(" ");
+
+const pdfText = (x, y, value, options = {}) => {
+  const { size = 9, font = "F1", color = "31 41 55" } = options;
+  return `${normalizePdfColor(color)} rg BT /${font} ${size} Tf ${x} ${y} Td (${escapePdfText(value)}) Tj ET`;
+};
+
+const pdfRect = (x, y, width, height, options = {}) => {
+  const { fill = null, stroke = null, strokeWidth = 1 } = options;
+  const commands = [];
+
+  if (fill) commands.push(`${normalizePdfColor(fill)} rg ${x} ${y} ${width} ${height} re f`);
+  if (stroke) commands.push(`${strokeWidth} w ${normalizePdfColor(stroke)} RG ${x} ${y} ${width} ${height} re S`);
+
+  return commands.join("\n");
+};
+
+const pdfLine = (x1, y1, x2, y2, color = "226 232 240", width = 1) =>
+  `${width} w ${normalizePdfColor(color)} RG ${x1} ${y1} m ${x2} ${y2} l S`;
+
+const formatPdfDate = (date) =>
+  date ? new Date(date).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" }) : "N/A";
+
+const getOrderItemsText = (order) => {
+  const items = parseOrderItems(order.items);
+  if (!items.length) return "No items";
+
+  return items
+    .map((item) => `${item.title || "Product"} (${item.weight || "-"} x ${item.quantity || 0})`)
+    .join(", ");
+};
+
+const createOrdersPdf = (orders) => {
+  const pageWidth = 595;
+  const pageHeight = 842;
+  const margin = 34;
+  const tableWidth = pageWidth - margin * 2;
+  const bottomMargin = 54;
+  const generatedAt = new Date().toLocaleString("en-IN");
+  const totalRevenue = orders.reduce((sum, order) => sum + Number(order.total_amount || 0), 0);
+  const deliveredOrders = orders.filter((order) => order.status === "delivered").length;
+  const pendingOrders = orders.filter((order) => order.status === "pending").length;
+  const columns = [
+    { label: "Order", x: margin + 8, width: 52 },
+    { label: "Customer", x: margin + 62, width: 92 },
+    { label: "Items", x: margin + 158, width: 150 },
+    { label: "Amount", x: margin + 316, width: 64 },
+    { label: "Payment", x: margin + 385, width: 56 },
+    { label: "Status", x: margin + 443, width: 50 },
+    { label: "Date", x: margin + 493, width: 44 },
+  ];
+  const pages = [];
+  let commands = [];
+  let y = 0;
+
+  const drawHeader = () => {
+    commands.push(pdfRect(0, pageHeight - 88, pageWidth, 88, { fill: "249 115 22" }));
+    commands.push(pdfText(margin, 795, "Orders Report", { size: 22, font: "F2", color: "255 255 255" }));
+    commands.push(pdfText(margin, 774, "Complete admin order export", { size: 10, color: "255 237 213" }));
+    commands.push(pdfText(pageWidth - 210, 795, `Generated: ${generatedAt}`, { size: 9, color: "255 255 255" }));
+  };
+
+  const drawSummaryCard = (x, label, value) => {
+    commands.push(pdfRect(x, 674, 124, 50, { fill: "255 247 237", stroke: "254 215 170" }));
+    commands.push(pdfText(x + 10, 703, label.toUpperCase(), { size: 7, font: "F2", color: "154 52 18" }));
+    commands.push(pdfText(x + 10, 684, value, { size: 14, font: "F2", color: "31 41 55" }));
+  };
+
+  const drawTableHeader = () => {
+    commands.push(pdfRect(margin, y - 6, tableWidth, 25, { fill: "31 41 55" }));
+    columns.forEach((column) => {
+      commands.push(pdfText(column.x, y + 3, column.label, { size: 8, font: "F2", color: "255 255 255" }));
+    });
+    y -= 26;
+  };
+
+  const finishPage = () => {
+    commands.push(pdfLine(margin, 34, pageWidth - margin, 34, "226 232 240"));
+    commands.push(pdfText(margin, 20, "Practice FE Admin", { size: 8, color: "100 116 139" }));
+    commands.push(pdfText(pageWidth - 84, 20, `Page ${pages.length + 1}`, { size: 8, color: "100 116 139" }));
+    pages.push(commands);
+  };
+
+  const startPage = (withSummary = false) => {
+    commands = [];
+    drawHeader();
+
+    if (withSummary) {
+      drawSummaryCard(margin, "Orders", String(orders.length));
+      drawSummaryCard(margin + 138, "Revenue", `Rs. ${totalRevenue.toFixed(2)}`);
+      drawSummaryCard(margin + 276, "Delivered", String(deliveredOrders));
+      drawSummaryCard(margin + 414, "Pending", String(pendingOrders));
+      y = 634;
+    } else {
+      y = 724;
+    }
+
+    drawTableHeader();
+  };
+
+  const drawRow = (order, index) => {
+    const customerLines = [
+      truncatePdfText(order.user_name || order.name || "N/A", 22),
+      truncatePdfText(order.user_email || order.email || "", 28),
+    ].filter(Boolean);
+    const itemLines = wrapPdfLine(getOrderItemsText(order), 34).slice(0, 2);
+    const rowHeight = Math.max(40, 18 + Math.max(customerLines.length, itemLines.length, 1) * 11);
+
+    if (y - rowHeight < bottomMargin) {
+      finishPage();
+      startPage();
+    }
+
+    commands.push(pdfRect(margin, y - rowHeight + 6, tableWidth, rowHeight, {
+      fill: index % 2 === 0 ? "255 255 255" : "248 250 252",
+      stroke: "226 232 240",
+      strokeWidth: 0.5,
+    }));
+    commands.push(pdfText(columns[0].x, y - 7, `#${order.id}`, { size: 9, font: "F2", color: "15 23 42" }));
+    customerLines.forEach((line, lineIndex) => {
+      commands.push(pdfText(columns[1].x, y - 7 - lineIndex * 11, line, {
+        size: lineIndex === 0 ? 8 : 7,
+        font: lineIndex === 0 ? "F2" : "F1",
+        color: lineIndex === 0 ? "31 41 55" : "100 116 139",
+      }));
+    });
+    itemLines.forEach((line, lineIndex) => {
+      commands.push(pdfText(columns[2].x, y - 7 - lineIndex * 11, line, { size: 7.5, color: "51 65 85" }));
+    });
+    commands.push(pdfText(columns[3].x, y - 7, `Rs. ${Number(order.total_amount || 0).toFixed(2)}`, { size: 8, font: "F2", color: "22 101 52" }));
+    commands.push(pdfText(columns[4].x, y - 7, truncatePdfText(order.payment_method || "N/A", 12), { size: 8, color: "51 65 85" }));
+    commands.push(pdfText(columns[5].x, y - 7, truncatePdfText(order.status || "N/A", 12), { size: 8, font: "F2", color: "249 115 22" }));
+    commands.push(pdfText(columns[6].x, y - 7, formatPdfDate(order.created_at), { size: 7, color: "71 85 105" }));
+
+    y -= rowHeight;
+  };
+
+  startPage(true);
+
+  if (orders.length) {
+    orders.forEach(drawRow);
+  } else {
+    commands.push(pdfRect(margin, y - 56, tableWidth, 52, { fill: "248 250 252", stroke: "226 232 240" }));
+    commands.push(pdfText(margin + 180, y - 28, "No orders found", { size: 12, font: "F2", color: "100 116 139" }));
+  }
+
+  finishPage();
+
+  const objects = [];
+  const regularFontObjectNumber = 3 + pages.length * 2;
+  const boldFontObjectNumber = regularFontObjectNumber + 1;
+  const pageObjectNumbers = pages.map((_, index) => 3 + index * 2);
+
+  objects[1] = "<< /Type /Catalog /Pages 2 0 R >>";
+  objects[2] = `<< /Type /Pages /Kids [${pageObjectNumbers.map((number) => `${number} 0 R`).join(" ")}] /Count ${pages.length} >>`;
+
+  pages.forEach((pageLines, index) => {
+    const pageObjectNumber = 3 + index * 2;
+    const contentObjectNumber = pageObjectNumber + 1;
+    const pageContent = pageLines.join("\n");
+
+    objects[pageObjectNumber] = `<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${pageWidth} ${pageHeight}] /Resources << /Font << /F1 ${regularFontObjectNumber} 0 R /F2 ${boldFontObjectNumber} 0 R >> >> /Contents ${contentObjectNumber} 0 R >>`;
+    objects[contentObjectNumber] = `<< /Length ${pageContent.length} >>\nstream\n${pageContent}\nendstream`;
+  });
+
+  objects[regularFontObjectNumber] = "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>";
+  objects[boldFontObjectNumber] = "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >>";
+
+  let pdf = "%PDF-1.4\n";
+  const offsets = [0];
+
+  for (let i = 1; i < objects.length; i += 1) {
+    offsets[i] = pdf.length;
+    pdf += `${i} 0 obj\n${objects[i]}\nendobj\n`;
+  }
+
+  const xrefOffset = pdf.length;
+  pdf += `xref\n0 ${objects.length}\n0000000000 65535 f \n`;
+
+  for (let i = 1; i < objects.length; i += 1) {
+    pdf += `${String(offsets[i]).padStart(10, "0")} 00000 n \n`;
+  }
+
+  pdf += `trailer\n<< /Size ${objects.length} /Root 1 0 R >>\nstartxref\n${xrefOffset}\n%%EOF`;
+
+  return new Blob([pdf], { type: "application/pdf" });
+};
 
 // ── Users Tab ─────────────────────────────────────────────────
 function Users() {
@@ -361,9 +636,21 @@ function Orders() {
       {deliveryModal && <DeliveryResponseModal order={deliveryModal} onClose={() => setDeliveryModal(null)} />}
 
       <div className="bg-white rounded-2xl border border-orange-100 shadow-sm overflow-hidden">
-        <div className="px-4 py-3 border-b border-gray-50 flex items-center justify-between">
-          <p className="text-sm font-bold text-gray-600">This Month's Orders</p>
-          <span className="text-xs bg-orange-100 text-orange-500 px-2.5 py-1 rounded-full font-semibold">{orders.length} orders</span>
+        <div className="px-4 py-4 sm:py-3 border-b border-gray-50 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <p className="text-sm font-bold text-gray-700">This Month's Orders</p>
+
+          <div className="flex w-full items-center gap-2 sm:w-auto sm:gap-3">
+            <button
+              onClick={handleDownloadPdf}
+              className="flex-1 sm:flex-none bg-orange-500 hover:bg-orange-600 text-white text-xs font-semibold px-4 py-2.5 sm:py-2 rounded-lg transition"
+            >
+              All Orders
+            </button>
+
+            <span className="shrink-0 text-xs bg-orange-100 text-orange-500 px-2.5 py-1 rounded-full font-semibold">
+              {orders.length} orders
+            </span>
+          </div>
         </div>
 
         {/* Mobile cards */}
@@ -374,17 +661,17 @@ function Orders() {
             const deliveryResponse = o.delivery_response || "pending";
             return (
               <div key={o.id} className="p-4">
-                <div className="flex items-center justify-between mb-2">
-                  <div>
-                    <p className="font-bold text-gray-800 text-sm">#{o.id} — {o.user_name}</p>
+                <div className="flex items-start justify-between gap-3 mb-3">
+                  <div className="min-w-0">
+                    <p className="font-bold text-gray-800 text-sm break-words">#{o.id} — {o.user_name}</p>
                     <p className="text-xs text-gray-400">{new Date(o.created_at).toLocaleDateString("en-IN", { day: "numeric", month: "short" })}</p>
                   </div>
-                  <span className={`text-xs font-bold px-2 py-0.5 rounded-full capitalize ${statusStyle[o.status]}`}>{o.status}</span>
+                  <span className={`shrink-0 text-xs font-bold px-2 py-0.5 rounded-full capitalize ${statusStyle[o.status]}`}>{o.status}</span>
                 </div>
                 <div className="text-xs text-gray-500 mb-2">
                   {items.map((item, i) => <p key={i} className="truncate">{item.title} ({item.weight} ×{item.quantity})</p>)}
                 </div>
-                <div className="flex items-center justify-between">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                   <div className="flex flex-col gap-0.5">
                     <p className="font-bold text-orange-500">₹{parseFloat(o.total_amount).toFixed(2)}</p>
                     {o.payment_method && (

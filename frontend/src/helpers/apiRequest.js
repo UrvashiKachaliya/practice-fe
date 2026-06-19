@@ -39,6 +39,7 @@ export const deleteProduct = (id) => axiosInstance.delete(`${API_ENDPOINTS.ADMIN
 export const getAdminOrders = () => axiosInstance.get(API_ENDPOINTS.ADMIN_ORDERS);
 export const updateOrderStatus = (id, status) => axiosInstance.put(`${API_ENDPOINTS.ADMIN_ORDERS}/${id}/status`, { status });
 export const respondDeliveryDate = (id, data) => axiosInstance.put(`${API_ENDPOINTS.ADMIN_ORDERS}/${id}/delivery-response`, data);
+export const getAllOrders = () => axiosInstance.get(API_ENDPOINTS.ALL_ORDERS);
 
 // Offers
 export const getActiveOffers = () => axiosInstance.get(API_ENDPOINTS.OFFERS);

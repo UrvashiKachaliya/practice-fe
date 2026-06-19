@@ -39,3 +39,40 @@ export const deleteProductService = async (id) => {
   await db.promise().query("DELETE FROM products WHERE id = ?", [id]);
   return { success: true };
 };
+
+// get all admin orders
+export const getAllAdminOrdersService = async () => {
+  const [orders] = await db.promise().query(
+    `SELECT o.*, u.name AS user_name, u.email AS user_email,
+      pay.status AS payment_status,
+      pay.method AS payment_method,
+      pay.bank,
+      pay.vpa,
+      pay.wallet,
+      pay.card_network,
+      pay.card_last4,
+      pay.razorpay_payment_id,
+      (
+        SELECT JSON_ARRAYAGG(
+          JSON_OBJECT(
+            'id', oi.id,
+            'title', oi.title,
+            'price', oi.price,
+            'quantity', oi.quantity,
+            'weight', oi.weight
+          )
+        )
+        FROM order_items oi
+        WHERE oi.order_id = o.id
+      ) AS items
+     FROM orders o
+     JOIN users u ON o.user_id = u.id
+     LEFT JOIN payments pay ON pay.order_id = o.id
+     ORDER BY o.created_at DESC`
+  );
+
+  return orders.map(order => ({
+    ...order,
+    items: order.items || [],
+  }));
+};
